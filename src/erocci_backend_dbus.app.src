@@ -1,0 +1,13 @@
+%%-*- mode: erlang -*-
+{application, erocci_backend_dbus,
+ [
+  {description, "erocci DBUS backend"},
+  {modules, []},
+  {vsn, "git"},
+  {applications, 
+   [
+    kernel,
+    stdlib,
+    dbus
+   ]}
+ ]}.
