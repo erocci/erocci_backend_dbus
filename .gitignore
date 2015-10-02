@@ -1,0 +1,6 @@
+*~
+*.beam
+*.d
+/ebin
+/.erlang.mk
+/deps
