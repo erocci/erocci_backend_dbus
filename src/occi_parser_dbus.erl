@@ -23,7 +23,7 @@
 -module(occi_parser_dbus).
 
 -include("occi_dbus.hrl").
--include("occi.hrl").
+-include_lib("erocci_core/include/occi.hrl").
 -include_lib("dbus/include/dbus.hrl").
 
 %% API

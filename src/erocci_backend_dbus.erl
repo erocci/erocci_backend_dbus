@@ -23,8 +23,8 @@
 
 -behaviour(occi_backend).
 
--include("occi.hrl").
--include("occi_log.hrl").
+-include_lib("erocci_core/include/occi.hrl").
+-include_lib("erocci_core/include/occi_log.hrl").
 -include_lib("dbus/include/dbus_client.hrl").
 
 -define(BACKEND_IFACE, <<"org.ow2.erocci.backend">>).
