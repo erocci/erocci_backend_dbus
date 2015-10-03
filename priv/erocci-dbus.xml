@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
-  "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd" >
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd" >
 <node >
-  <interface name="org.occiware.runtime.backend">
-	<method name="Init" >
+  <interface name="org.ow2.erocci.backend">
+    <method name="Init" >
       <!--
-		  opts: a list of key-value pairs
+	  opts: a list of key-value pairs
       -->
       <arg name="opts" type="a{sv}" direction="in" />
-	</method>
+    </method>
 
-	<method name="Terminate" >
-	</method>
-	
-	<method name="SaveResource" >
+    <method name="Terminate" >
+    </method>
+    
+    <method name="SaveResource" >
       <!-- id: resource url, empty for auto id generation -->
       <arg name="id" type="s" direction="in" />
       <arg name="attributes" type="a{sv}" direction="in" />
@@ -21,9 +21,9 @@
       <arg name="group" type="s" direction="in" />
 
       <arg name="id" type="s" direction="out" />
-	</method>
+    </method>
 
-	<method name="SaveLink" >
+    <method name="SaveLink" >
       <!-- id: resource url, empty for auto id generation -->
       <arg name="id" type="s" direction="in" />
       <arg name="src" type="s" direction="in" />
@@ -33,56 +33,56 @@
       <arg name="group" type="s" direction="in" />
       
       <arg name="id" type="s" direction="out" />      
-	</method>
+    </method>
 
-	<method name="SaveMixin" >
+    <method name="SaveMixin" >
       <arg name="id" type="s" direction="in" />
-	</method>
+    </method>
 
-	<method name="Update" >
+    <method name="Update" >
       <arg name="id" type="s" direction="in" />
       <arg name="attributes" type="a{sv}" direction="in" />
 
       <arg name="attributes" type="a{sv}" direction="out" />
-	</method>
+    </method>
 
-	<method name="UpdateMixin" >
+    <method name="UpdateMixin" >
       <arg name="id" type="s" direction="in" />
       <arg name="entities" type="as" direction="in" />
 
       <arg name="entities" type="as" direction="out" />
-	</method>
+    </method>
 
-	<method name="Action" >
+    <method name="Action" >
       <arg name="id" type="s" direction="in" />
       <arg name="action_id" type="s" direction="in" />
       <arg name="attributes" type="a{sv}" direction="in" />
 
       <arg name="attributes" type="a{sv}" direction="out" />
-	</method>
+    </method>
 
-	<method name="Find" >
+    <method name="Find" >
       <arg name="id" type="s" direction="in" />
 
       <arg name="opaque_id" type="s" direction="out" />
       <arg name="serial" type="s" direction="out" />
       <arg name="owner" type="s" direction="out" />
       <arg name="group" type="s" direction="out" />
-	</method>
+    </method>
 
-	<method name="List" >
+    <method name="List" >
       <arg name="id" type="s" direction="in" />
       <arg name="filters" type="a{sv}" direction="in" />
       <arg name="page" type="u" direction="in" />
       <arg name="number" type="u" direction="in" />
 
       <arg name="entities" type="as" direction="out" />
-	</method>
+    </method>
 
-	<method name="Delete" >
+    <method name="Delete" >
       <arg name="id" type="s" direction="in" />
-	</method>
+    </method>
 
-	<property name="schema" type="s" access="read" />
+    <property name="schema" type="s" access="read" />
   </interface>
 </node>
