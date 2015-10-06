@@ -85,7 +85,7 @@ gen_python(#xmlElement{name=node}=E, #state{indent=L, name=Name}=S) ->
     ];
 gen_python(#xmlElement{name=interface, content=Content}=E, #state{name=Name, indent=L}=S) ->
     [
-     "IFACE = ", attr_value(E, name), "\n",
+     "IFACE = \"", attr_value(E, name), "\"\n",
      "SERVICE = \"org.ow2.erocci.backend.SampleService\"\n",
      "\n",
      io_lib:format("class ~s(dbus.service.Object):\n", [Name]),
