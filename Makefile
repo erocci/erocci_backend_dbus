@@ -9,8 +9,8 @@ dep_dbus = git git://github.com/lizenn/erlang-dbus.git master
 include erlang.mk
 
 fetch: $(ALL_DEPS_DIRS)
-	for d in $(ALL_DEPS_DIRS); do \
-	  $(MAKE) -C $$d $@ || true; \
+	@for d in $(ALL_DEPS_DIRS); do \
+	  $(MAKE) --no-print-directory -C $$d $@ || true; \
 	done
 
 .PHONY: fetch
