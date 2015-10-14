@@ -3,6 +3,10 @@
 "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd" >
 <node >
   <interface name="org.ow2.erocci.backend">
+    <!--
+	Backends must implement this interface
+    -->
+    
     <method name="Init" >
       <!--
 	  opts: a list of key-value pairs
@@ -14,75 +18,172 @@
     </method>
     
     <method name="SaveResource" >
-      <!-- id: resource url, empty for auto id generation -->
+      <!-- id (string): resource url (path's relative part), empty for auto id generation -->
       <arg name="id" type="s" direction="in" />
+      <!-- kind (string): category id -->
+      <arg name="kind" type="s" direction="in" />
+      <!-- mixins (string array): list of category id -->
+      <arg name="mixins" type="as" direction="in" />
+      <!-- attributes (string-variant list): key-value list -->
       <arg name="attributes" type="a{sv}" direction="in" />
+      <!-- owner (string): resource owner -->
       <arg name="owner" type="s" direction="in" />
+      <!-- group (string): resource group -->
       <arg name="group" type="s" direction="in" />
 
+      <!-- id (string): resource id (path's relative part) -->
       <arg name="id" type="s" direction="out" />
     </method>
 
     <method name="SaveLink" >
-      <!-- id: resource url, empty for auto id generation -->
+      <!-- id (string): resource url (path's relative part), empty for auto id generation -->
       <arg name="id" type="s" direction="in" />
+      <!-- kind (string): category id -->      
+      <arg name="kind" type="s" direction="in" />
+      <!-- mixins (string array): list of category id -->
+      <arg name="mixins" type="as" direction="in" />
+      <!-- src (string): link source (url) -->      
       <arg name="src" type="s" direction="in" />
+      <!-- target (string): link target (url) -->      
       <arg name="target" type="s" direction="in" />
+      <!-- attributes (string-variant list): key-value list -->
       <arg name="attributes" type="a{sv}" direction="in" />
+      <!-- owner (string): resource owner -->
       <arg name="owner" type="s" direction="in" />
+      <!-- group (string): resource group -->
       <arg name="group" type="s" direction="in" />
-      
+
+      <!-- id (string): resource id -->      
       <arg name="id" type="s" direction="out" />      
     </method>
 
-    <method name="SaveMixin" >
-      <arg name="id" type="s" direction="in" />
-    </method>
-
     <method name="Update" >
+      <!-- id (string): resource url, empty for auto id generation -->
       <arg name="id" type="s" direction="in" />
+      <!-- attributes (string-variant list): to update attributes -->
       <arg name="attributes" type="a{sv}" direction="in" />
 
+      <!-- attributes (string-variant list): full list of attributes -->
       <arg name="attributes" type="a{sv}" direction="out" />
+    </method>
+
+    <method name="SaveMixin" >
+      <!-- id (string): mixin category id -->
+      <arg name="id" type="s" direction="in" />
+      <!-- entitites (string array): full list of entity ids to attach to a mixin -->
+      <arg name="entities" type="as" direction="in" />
     </method>
 
     <method name="UpdateMixin" >
+      <!-- id (string): mixin category id -->
       <arg name="id" type="s" direction="in" />
+      <!-- entitites (string array): list of entity ids to add to the mixin collection -->
       <arg name="entities" type="as" direction="in" />
-
-      <arg name="entities" type="as" direction="out" />
-    </method>
-
-    <method name="Action" >
-      <arg name="id" type="s" direction="in" />
-      <arg name="action_id" type="s" direction="in" />
-      <arg name="attributes" type="a{sv}" direction="in" />
-
-      <arg name="attributes" type="a{sv}" direction="out" />
     </method>
 
     <method name="Find" >
+      <!-- id (string): entity url (path relative part) -->
       <arg name="id" type="s" direction="in" />
 
-      <arg name="opaque_id" type="s" direction="out" />
-      <arg name="serial" type="s" direction="out" />
-      <arg name="owner" type="s" direction="out" />
-      <arg name="group" type="s" direction="out" />
+      <!--
+	  entities (array): possibly empty array of entities metadata
+	    (variant): backend internal id
+	    (string): owner
+	    (string): group
+	    (string): serial number
+      -->
+      <arg name="entities" type="a(vssu)" direction="out" />
+    </method>
+
+    <method name="Load" >
+      <!-- opaque_id (variant): entity internal id -->
+      <arg name="opaque_id" type="v" direction="in" />
+
+      <!-- id (string): entity url (path's relative part) -->
+      <arg name="id" type="s" direction="out" />
+      <!-- kind (string): category id -->
+      <arg name="kind" type="s" direction="out" />
+      <!-- mixins (string array): category ids -->
+      <arg name="mixins" type="as" direction="out" />
+      <!-- attributes (strign-variant list): attributes map -->
+      <arg name="attributes" type="a{sv}" direction="out" />
     </method>
 
     <method name="List" >
+      <!-- id (string): collection url (path's relative part) -->
       <arg name="id" type="s" direction="in" />
+      <!-- filters (string-variant list): key-value filters list (to be defined) -->
       <arg name="filters" type="a{sv}" direction="in" />
+
+      <!-- opaque_id (variant): collection internal id -->
+      <arg name="opaque_id" type="v" direction="out" />
+      <!-- serial (unisgned int): collection serial number -->
+      <arg name="serial" type="u" direction="out" />
+    </method>
+
+    <method name="Next" >
+      <!-- opaque_id (variant): collection internal id -->      
+      <arg name="opaque_id" type="v" direction="in" />
+      <!-- page (unsigned int): page number -->
       <arg name="page" type="u" direction="in" />
+      <!-- number (unsigned int): max number of items to return -->
       <arg name="number" type="u" direction="in" />
 
-      <arg name="entities" type="as" direction="out" />
+      <!--
+	  entities (array): list of
+	    (string): entity id, url path relative part
+	    (string): owner
+	    (string): group
+      -->
+      <arg name="entities" type="a(sss)" direction="out" />
     </method>
 
     <method name="Delete" >
+      <!-- id (string): (path's relative part) url -->
       <arg name="id" type="s" direction="in" />
     </method>
 
+    <!-- schema (string): XML-encoded OCCI categories -->
     <property name="schema" type="s" access="read" />
+  </interface>
+  
+  <interface name="org.ow2.erocci.backend.mixin">
+    <!--
+	Optional: a backend must implement this interface, would it be
+	able to register user mixins
+    -->
+    
+    <method name="AddMixin" >
+      <!-- id (string): user mixin category id -->
+      <arg name="id" type="s" direction="in" />
+      <!-- location (string): (path's relative part of) url -->
+      <arg name="location" type="s" direction="in" />
+      <!-- owner (string): user mixin owner -->
+      <arg name="owner" type="s" direction="in" />
+      <!-- group (string): user mixin group -->
+      <arg name="group" type="s" direction="in" />
+    </method>
+
+    <method name="DelMixin" >
+      <!-- id (string): user mixin category id -->
+      <arg name="id" type="s" direction="in" />
+    </method>
+  </interface>
+
+  <interface name="org.ow2.erocci.backend.action" >
+    <!--
+	Optional: a backend must implment this interface, woult it
+	support actions
+    -->
+    
+    <method name="Action" >
+      <!-- id (string): (path's relative part of) entity id -->
+      <arg name="id" type="s" direction="in" />
+      <!-- action_id (string): category id identifying the action -->
+      <arg name="action_id" type="s" direction="in" />
+      <!-- attributes (string-variant array): action attributes
+           instance -->
+      <arg name="attributes" type="a{sv}" direction="in" />
+    </method>
   </interface>
 </node>
