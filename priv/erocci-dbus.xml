@@ -285,41 +285,59 @@
   </interface>
   
   <interface name="org.ow2.erocci.backend.mixin">
-    <!--
-	Optional: a backend must implement this interface, would it be
-	able to register user mixins
-    -->
-    
+    <xs:annotation>
+      <xs:documentation>Optional interface for handling user mixins</xs:documentation>
+    </xs:annotation>
+        
     <method name="AddMixin" >
-      <!-- id (string): user mixin category id -->
+      <xs:annotation>
+	<xs:documentation>Register a user mixin</xs:documentation>
+	<xs:documentation>
+	  In:
+	  * id (string): user mixin category if
+	  * location (sting): relative path url part
+	  * owner (string): user mixin owner (opaque)
+	  * group (string): user mixin group (opaque)
+	</xs:documentation>
+      </xs:annotation>
+      
       <arg name="id" type="s" direction="in" />
-      <!-- location (string): (path's relative part of) url -->
       <arg name="location" type="s" direction="in" />
-      <!-- owner (string): user mixin owner -->
       <arg name="owner" type="s" direction="in" />
-      <!-- group (string): user mixin group -->
       <arg name="group" type="s" direction="in" />
     </method>
 
     <method name="DelMixin" >
-      <!-- id (string): user mixin category id -->
+      <xs:annotation>
+	<xs:documentation>Delete user mixin</xs:documentation>
+	<xs:documentation>
+	  In:
+	  * id (string): user mixin category id
+	</xs:documentation>
+      </xs:annotation>
+      
       <arg name="id" type="s" direction="in" />
     </method>
   </interface>
 
   <interface name="org.ow2.erocci.backend.action" >
-    <!--
-	Optional: a backend must implment this interface, woult it
-	support actions
-    -->
-    
+    <xs:annotation>
+      <xs:documentation>Optional interface for handling entities actions</xs:documentation>
+    </xs:annotation>
+        
     <method name="Action" >
-      <!-- id (string): (path's relative part of) entity id -->
+      <xs:annotation>
+	<xs:documentation>Called for handling an action on a particular entity</xs:documentation>
+	<xs:documentation>
+	  In:
+	  * id (string): relative path url part
+	  * action_id (string): category id identifying the action
+	  * attributes (string-variant array): action's parameters
+	</xs:documentation>
+      </xs:annotation>
+      
       <arg name="id" type="s" direction="in" />
-      <!-- action_id (string): category id identifying the action -->
       <arg name="action_id" type="s" direction="in" />
-      <!-- attributes (string-variant array): action attributes
-           instance -->
       <arg name="attributes" type="a{sv}" direction="in" />
     </method>
   </interface>
