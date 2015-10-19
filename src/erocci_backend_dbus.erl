@@ -27,7 +27,9 @@
 -include_lib("erocci_core/include/occi_log.hrl").
 -include_lib("dbus/include/dbus_client.hrl").
 
--define(BACKEND_IFACE, <<"org.ow2.erocci.backend">>).
+-define(IFACE_BACKEND, <<"org.ow2.erocci.backend">>).
+-define(IFACE_BACKEND_MIXIN, <<"org.ow2.erocci.backend.mixin">>).
+-define(IFACE_BACKEND_ACTION, <<"org.ow2.erocci.backend.action">>).
 
 %% occi_backend callbacks
 -export([init/1,
@@ -40,50 +42,37 @@
 	 action/3]).
 
 -record(state, {conn      :: dbus_connection(),
-		backend   :: dbus_proxy()}).
+		proxy     :: dbus_proxy(),
+		i_mixin   :: boolean(),
+		i_action  :: boolean()}).
 
 %%%===================================================================
 %%% occi_backend callbacks
 %%%===================================================================
 init(#occi_backend{opts=Props}) ->
     try parse_opts(Props) of
-	{Service, Opts} ->
-	    case connect_backend(Service) of
-		{ok, Bus, Backend} ->
-		    ?info("Initializing backend service: ~s~n", [Service]),
-		    case dbus_proxy:call(Backend, ?BACKEND_IFACE, <<"init">>, [Opts]) of
-			{ok, Schemas} ->
-			    {ok, process_schemas(Schemas, []), #state{conn=Bus, backend=Backend}};
-			{error, {Code, Err}} ->
-			    ?debug("Error initializing: ~n"
-				   "Code=~s~n"
-				   "Reason=~n~s~n", [Code, Err]),
-			    {error, Err}
-		    end;
-		{error, Err} ->
-		    {error, Err}
-	    end
+	{Service, Opts} -> connect_backend(Service, Opts)
     catch throw:Err -> {error, Err}
     end.
 
 
-terminate(#state{backend=Backend}) ->
-    case dbus_proxy:call(Backend, ?BACKEND_IFACE, <<"terminate">>, []) of
+terminate(#state{proxy=Backend}) ->
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"terminate">>, []) of
 	_ -> ok
     end.
 
-save(#state{backend=Backend}=State, #occi_node{}=Node) ->
+save(#state{proxy=Backend}=State, #occi_node{}=Node) ->
     ?info("[~p] save(~p)~n", [?MODULE, Node]),
-    case dbus_proxy:call(Backend, ?BACKEND_IFACE, <<"save">>, [occi_renderer_dbus:render(Node)]) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"save">>, [occi_renderer_dbus:render(Node)]) of
 	ok ->
 	    {ok, State};
 	{error, Err} ->
 	    {{error, Err}, State}
     end.
 
-delete(#state{backend=Backend}=State, #occi_node{id=Uri}=Node) ->
+delete(#state{proxy=Backend}=State, #occi_node{id=Uri}=Node) ->
     ?info("[~p] delete(~p)~n", [?MODULE, Node]),
-    case dbus_proxy:call(Backend, ?BACKEND_IFACE, <<"delete">>, [occi_uri:to_binary(Uri)]) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"delete">>, [occi_uri:to_binary(Uri)]) of
 	ok ->
 	    {ok, State};
 	{error, Err} ->
@@ -91,9 +80,9 @@ delete(#state{backend=Backend}=State, #occi_node{id=Uri}=Node) ->
     end.
 
 
-update(#state{backend=Backend}=State, #occi_node{}=Node) ->
+update(#state{proxy=Backend}=State, #occi_node{}=Node) ->
     ?info("[~p] update(~p)~n", [?MODULE, Node]),
-    case dbus_proxy:call(Backend, ?BACKEND_IFACE, <<"update">>, [occi_renderer_dbus:render(Node)]) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"update">>, [occi_renderer_dbus:render(Node)]) of
 	ok ->
 	    {ok, State};
 	{error, Err} ->
@@ -101,9 +90,9 @@ update(#state{backend=Backend}=State, #occi_node{}=Node) ->
     end.
 
 
-find(#state{backend=Backend}=State, #occi_node{id=Uri}=_N) ->
+find(#state{proxy=Backend}=State, #occi_node{id=Uri}=_N) ->
     ?info("[~p] find(~p)~n", [?MODULE, _N]),
-    case dbus_proxy:call(Backend, ?BACKEND_IFACE, <<"find">>, [occi_uri:to_binary(Uri)]) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"find">>, [occi_uri:to_binary(Uri)]) of
 	{ok, [Node]} ->
 	    {{ok, [occi_parser_dbus:parse(Node)]}, State};
 	{error, Err} ->
@@ -111,9 +100,9 @@ find(#state{backend=Backend}=State, #occi_node{id=Uri}=_N) ->
     end.
 
 
-load(#state{backend=Backend}=State, #occi_node{id=Uri}=Node, _Opts) ->
+load(#state{proxy=Backend}=State, #occi_node{id=Uri}=Node, _Opts) ->
     ?info("[~p] load(~p)~n", [?MODULE, Uri]),
-    case dbus_proxy:call(Backend, ?BACKEND_IFACE, <<"load">>, [occi_renderer_dbus:render(Node)]) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"load">>, [occi_renderer_dbus:render(Node)]) of
 	{ok, N} ->
 	    {{ok, occi_parser_dbus:parse(N)}, State};
 	{error, Err} ->
@@ -121,11 +110,11 @@ load(#state{backend=Backend}=State, #occi_node{id=Uri}=Node, _Opts) ->
     end.
 
 
-action(#state{backend=Backend}=State, #uri{}=Id, #occi_action{}=A) ->
+action(#state{proxy=Backend}=State, #uri{}=Id, #occi_action{}=A) ->
     ?info("[~p] action(~p, ~p)~n", [?MODULE, Id, A]),
     Args = [occi_renderer_dbus:render(Id), 
 	    occi_renderer_dbus:render(A)],
-    case dbus_proxy:call(Backend, ?BACKEND_IFACE, <<"load">>, Args) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"load">>, Args) of
 	ok ->
 	    {ok, State};
 	{error, Err} ->
@@ -147,22 +136,32 @@ parse_opts(Props) ->
     {Srv, Opts}.
 
 
-connect_backend(Service) ->
+connect_backend(Service, Opts) ->
     case dbus_bus_connection:connect(session) of
 	{ok, Bus} ->
+	    ?info("Initializing backend service: ~s~n", [Service]),
 	    case dbus_proxy:start_link(Bus, Service) of
-		{ok, Backend} -> {ok, Bus, Backend};
+		{ok, Backend} -> 
+		    State = #state{conn=Bus, proxy=Backend},
+		    init_service(State, Opts);
 		{error, _} = Err -> Err
 	    end;
 	{error, _} = Err -> Err
     end.
 
 
-process_schemas([], Acc) ->
-    lists:reverse(Acc);
-
-process_schemas([#dbus_variant{type=string, value=Bin} | Rest], Acc) ->
-    process_schemas(Rest, [Bin | Acc]);
-
-process_schemas([#dbus_variant{type={struct, [string, string]}, value={<<"path">>, Val}} | Rest], Acc) ->
-    process_schemas(Rest, [{path, Val} | Acc]).
+init_service(#state{proxy=Backend}=State, Opts) ->
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Init">>, [Opts]) of
+	ok ->
+	    ?debug("Initialization ok...", []),
+	    Schema = dbus_properties_proxy:get(Backend, ?IFACE_BACKEND, 'schema'),
+	    {ok, [Schema], 
+	     State#state{
+	       i_mixin=dbus_proxy:has_interface(Backend, ?IFACE_BACKEND_MIXIN),
+	       i_action=dbus_proxy:has_interface(Backend, ?IFACE_BACKEND_ACTION)}};
+	{error, {Code, Err}} ->
+	    ?debug("Error initializing: ~n"
+		   "Code=~s~n"
+		   "Reason=~n~s~n", [Code, Err]),
+	    {error, Err}
+    end.
