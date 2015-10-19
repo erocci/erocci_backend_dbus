@@ -2,8 +2,12 @@
 #
 # Sample python backend - in memory storage
 #
+from gi.repository import Gtk
+from dbus.mainloop.glib import DBusGMainLoop
+
 import dbus
 import dbus.service
+import signal
 
 IFACE = "org.ow2.erocci.backend"
 SERVICE = "org.ow2.erocci.backend.SampleService"
@@ -200,7 +204,7 @@ class SampleService(dbus.service.Object):
     def Get(self, interface_name, property_name):
         if interface_name == IFACE:
             if property_name == 'schema':
-                return {'schema': get_schema()}
+                return ('schema', get_schema())
             else:
                 raise dbus.exception.DBusException(
                     'org.ow2.erocci.UnknownProperty',
@@ -213,14 +217,14 @@ class SampleService(dbus.service.Object):
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='s', out_signature='a{sv}')
     def GetAll(self, interface_name):
         if interface_name == IFACE:
-            return [{'schema': self.__schema}]
+            return {'schema': self.__schema}
         else:
             raise dbus.exception.DBusException(
                 'org.ow2.erocci.UnknownInterface',
                 'The / object does not implement the %s interface' % interface_name)
 
     @dbus.service.signal(dbus.PROPERTIES_IFACE, signature='sa{sv}as')
-    def PropertiesChanged(self, interface_name, property_name):
+    def PropertiesChanged(self, interface_name, changed_properties, invalidated_properties):
         pass 
 
 
