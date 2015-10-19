@@ -57,7 +57,7 @@ init(#occi_backend{opts=Props}) ->
 
 
 terminate(#state{proxy=Backend}) ->
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"terminate">>, []) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Terminate">>, []) of
 	_ -> ok
     end.
 
