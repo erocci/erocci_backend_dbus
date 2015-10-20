@@ -58,7 +58,6 @@
 	  * mixins (string array): list of category id
 	  * attributes (string-variant array): resource attributes
 	  * owner (string): resource owner (opaque)
-	  * group (string): resource group (opaque)
 	</xs:documentation>
 	<xs:documentation>
 	  Out:
@@ -71,7 +70,6 @@
       <arg name="mixins" type="as" direction="in" />
       <arg name="attributes" type="a{sv}" direction="in" />
       <arg name="owner" type="s" direction="in" />
-      <arg name="group" type="s" direction="in" />
 
       <arg name="id" type="s" direction="out" />
     </method>
@@ -89,7 +87,6 @@
 	  * target (string): link target url
 	  * attributes (string-variant array): link attributes
 	  * owner (string): link owner (opaque)
-	  * group (string): link group (opaque)
 	</xs:documentation> 
 	<xs:documentation>
 	  Out:
@@ -108,7 +105,6 @@
       <arg name="target" type="s" direction="in" />
       <arg name="attributes" type="a{sv}" direction="in" />
       <arg name="owner" type="s" direction="in" />
-      <arg name="group" type="s" direction="in" />
 
       <arg name="id" type="s" direction="out" />      
     </method>
@@ -175,14 +171,13 @@
 	  * entitites (array): (possibly empty) array of entities metadata:
 	    * (variant): backend internal opaque id
 	    * (string): owner
-	    * (string): group
 	    * (string): serial
 	</xs:documentation>
       </xs:annotation>
       
       <arg name="id" type="s" direction="in" />
 
-      <arg name="entities" type="a(vssu)" direction="out" />
+      <arg name="entities" type="a(vsu)" direction="out" />
     </method>
 
     <method name="Load" >
@@ -249,7 +244,6 @@
 	  * entities (array): collection items array
 	    (string): path relative url part
 	    (string): item owner
-	    (string): item group
 	</xs:documentation>
       </xs:annotation>
 
@@ -257,7 +251,7 @@
       <arg name="start" type="u" direction="in" />
       <arg name="items" type="u" direction="in" />
 
-      <arg name="entities" type="a(sss)" direction="out" />
+      <arg name="entities" type="a(ss)" direction="out" />
     </method>
 
     <method name="Delete" >
@@ -297,14 +291,12 @@
 	  * id (string): user mixin category if
 	  * location (sting): relative path url part
 	  * owner (string): user mixin owner (opaque)
-	  * group (string): user mixin group (opaque)
 	</xs:documentation>
       </xs:annotation>
       
       <arg name="id" type="s" direction="in" />
       <arg name="location" type="s" direction="in" />
       <arg name="owner" type="s" direction="in" />
-      <arg name="group" type="s" direction="in" />
     </method>
 
     <method name="DelMixin" >

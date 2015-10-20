@@ -18,8 +18,7 @@ E_KIND = 1
 E_MIXINS = 2
 E_ATTRS = 3
 E_OWNER = 4
-E_GROUP = 5
-E_SERIAL = 6
+E_SERIAL = 5
 
 # Entity type instance
 RESOURCE = 0
@@ -75,20 +74,20 @@ class SampleService(dbus.service.Object):
     def Terminate(self):
         return 
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='ssasa{sv}ss', out_signature='s')
-    def SaveResource(self, id, kind, mixins, attributes, owner, group):
+    @dbus.service.method("org.ow2.erocci.backend", in_signature='ssasa{sv}s', out_signature='s')
+    def SaveResource(self, id, kind, mixins, attributes, owner):
         serial = 1
         attributes["occi.core.links"] = []
-        self.__entities[id] = (RESOURCE, kind, mixins, attributes, owner, group, serial)
+        self.__entities[id] = (RESOURCE, kind, mixins, attributes, owner, serial)
         self.__add_to_categories(id, kind, mixins)
         return id
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='ssasssa{sv}ss', out_signature='s')
-    def SaveLink(self, id, kind, mixins, src, target, attributes, owner, group):
+    @dbus.service.method("org.ow2.erocci.backend", in_signature='ssasssa{sv}s', out_signature='s')
+    def SaveLink(self, id, kind, mixins, src, target, attributes, owner):
         serial = 1
         attributes = attributes[A_SOURCE] = src
         attributes = attributes[A_TARGET] = target
-        self.__entities[id] = (LINK, kind, mixins, attributes, owner, group, serial)
+        self.__entities[id] = (LINK, kind, mixins, attributes, owner, serial)
         self.__add_to_categories(id, kind, mixins)
         self.__entities[src][E_ATTRS]['links'].append(id)
         self.__entities[target][E_ATTRS]['links'].append(id)
@@ -97,10 +96,10 @@ class SampleService(dbus.service.Object):
     @dbus.service.method("org.ow2.erocci.backend", in_signature='sa{sv}', out_signature='a{sv}')
     def Update(self, id, attributes):
         if id in self.__entities:
-            (parent, kind, mixins, attributes2, owner, group, serial) = self.__entities[id]
+            (parent, kind, mixins, attributes2, owner, serial) = self.__entities[id]
             for key in attributes:
                 attributes2[key] = attributes[key]
-            self.__entities[id] = (parent, kind, mixins, attributes2, owner, group, serial+1)
+            self.__entities[id] = (parent, kind, mixins, attributes2, owner, serial+1)
         else:
             raise dbus.exception.DBusException(
                 'org.ow2.erocci.UnknownEntity',
@@ -112,9 +111,9 @@ class SampleService(dbus.service.Object):
     def SaveMixin(self, id, entities):
         self.__mixins[id] = set(entities)
         for entity in entities:
-            (parent, kind, mixins, attributes, owner, group, serial) = self.__entities[id]
+            (parent, kind, mixins, attributes, owner, serial) = self.__entities[id]
             mixins2 = mixins.append(id)
-            self.__entities[id] = (parent, kind, mixins2, attributes, owner, group, serial+1)
+            self.__entities[id] = (parent, kind, mixins2, attributes, owner, serial+1)
         return
 
     @dbus.service.method("org.ow2.erocci.backend", in_signature='sas', out_signature='')
@@ -123,27 +122,27 @@ class SampleService(dbus.service.Object):
             self.__mixins[id] = set()
         self.__mixins[id] = self.__mixins[id].intersection(entities)
         for entity in entities:
-            (parent, kind, mixins, attributes, owner, group, serial) = self.__entities[id]
+            (parent, kind, mixins, attributes, owner, serial) = self.__entities[id]
             mixins2 = mixins.append(id)
-            self.__entities[id] = (parent, kind, mixins2, attributes, owner, group, serial+1)
+            self.__entities[id] = (parent, kind, mixins2, attributes, owner, serial+1)
         return
 
     #
     # Find / Load are called respectively when fetching metadata and content
     # of an entity
     #
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='s', out_signature='a(vsss)')
+    @dbus.service.method("org.ow2.erocci.backend", in_signature='s', out_signature='a(vss)')
     def Find(self, id):
         if id in self.__entities:
-            (_parent, _kind, _mixins, _attributes, owner, group, serial) = self.__entities[id]
-            return [(id, owner, group, serial)]
+            (_parent, _kind, _mixins, _attributes, owner, serial) = self.__entities[id]
+            return [(id, owner, serial)]
         else:
             return []
 
     @dbus.service.method("org.ow2.erocci.backend", in_signature='v', out_signature='ssasa{sv}')
     def Load(self, id):
         if id in self.__entities:
-            (_parent, kind, mixins, attributes, _owner, _group, _serial) = self.__entities[id]
+            (_parent, kind, mixins, attributes, _owner, _serial) = self.__entities[id]
             return (id, kind, mixins, attributes)
         else:
             raise dbus.exception.DBusException(
@@ -165,7 +164,7 @@ class SampleService(dbus.service.Object):
             return (B_UNBOUNDED, id)
         
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='vuu', out_signature='a(sss)')
+    @dbus.service.method("org.ow2.erocci.backend", in_signature='vuu', out_signature='a(ss)')
     def Next(self, iter, start, items):
         (type, _id) = iter
         full_ids = []
@@ -176,7 +175,7 @@ class SampleService(dbus.service.Object):
         else:
             full_ids = [ entity_id for entity_id in self.__entities if entity_id.startswith(id) ]
 
-        return [ (id, entity[E_OWNER], entity[E_GROUP])
+        return [ (id, entity[E_OWNER])
                  for (id, entity) in self.__entities.items()[start:(start+items)] ]
 
     @dbus.service.method("org.ow2.erocci.backend", in_signature='s', out_signature='')
