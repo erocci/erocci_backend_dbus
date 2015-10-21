@@ -5,3 +5,5 @@
 /ebin
 /.erlang.mk
 /deps
+/priv/java
+/priv/erocci-dbus-nodoc.xml
