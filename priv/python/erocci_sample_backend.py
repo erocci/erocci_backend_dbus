@@ -29,7 +29,11 @@ A_SOURCE = "occi.core.source"
 A_TARGET = "occi.core.target"
 A_LINKS = "occi.core.links"
 
-# Collections types
+# Node types (defined in D-Bus API)
+N_ENTITY = 0        # entity
+N_UNBOUNDED = 1     # unbounded collection
+
+# Internal collection type
 C_KIND = 0
 C_MIXIN = 1
 C_UNBOUNDED = 2
@@ -128,16 +132,16 @@ class SampleService(dbus.service.Object):
         return
 
     #
-    # Find / Load are called respectively when fetching metadata and content
-    # of an entity
+    # Find is called to get metadata of a node (entity, collection)
     #
     @dbus.service.method("org.ow2.erocci.backend", in_signature='s', out_signature='a(vss)')
     def Find(self, id):
         if id in self.__entities:
             (_parent, _kind, _mixins, _attributes, owner, serial) = self.__entities[id]
-            return [(id, owner, serial)]
+            return [(N_ENTITY, id, owner, serial)]
         else:
-            return []
+            # Return unbounded collection without collection, will be possibly empty
+            return [(N_UNBOUNDED, id, "", 0)]
 
     @dbus.service.method("org.ow2.erocci.backend", in_signature='v', out_signature='ssasa{sv}')
     def Load(self, id):

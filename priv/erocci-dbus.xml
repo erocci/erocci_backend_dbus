@@ -161,14 +161,15 @@
 
     <method name="Find" >
       <xs:annotation>
-	<xs:documentation>Retrieve entity metadata</xs:documentation>
+	<xs:documentation>Retrieve node metadata (entity, collection, ...)</xs:documentation>
 	<xs:documentation>
 	  In:
-	  * id (string): entity path relative url part
+	  * id (string): path relative url part
 	</xs:documentation>
 	<xs:documentation>
 	  Out:
 	  * entitites (array): (possibly empty) array of entities metadata:
+	    * (byte): type (0: entity, 1: unbounded collection)
 	    * (variant): backend internal opaque id
 	    * (string): owner
 	    * (string): serial
@@ -177,7 +178,7 @@
       
       <arg name="id" type="s" direction="in" />
 
-      <arg name="entities" type="a(vsu)" direction="out" />
+      <arg name="entities" type="a(yvsu)" direction="out" />
     </method>
 
     <method name="Load" >
@@ -193,7 +194,7 @@
 	  * kind (string): category id
 	  * mixins (string array): category ids
 	  * attributes (string-variant array): entity attributes,
-	  including core attribute (occi.core.src and occi.core.target)	    
+	  including core attribute (occi.core.source and occi.core.target)	    
 	</xs:documentation>
       </xs:annotation>
 	  
@@ -210,9 +211,7 @@
 	<xs:documentation>Get an iterator on a collection</xs:documentation>
 	<xs:documentation>
 	  In:
-	  * id (string):
-	    * if full url: category id (bounded collection)
-	    * if path relative url part: unbounded collection
+	  * id (string): category id or path relative url part
 	  * filters (string-variant array): key-value specified
 	  filters (TO BE DEFINED)
 	</xs:documentation>

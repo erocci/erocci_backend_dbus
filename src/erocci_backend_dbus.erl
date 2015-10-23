@@ -27,6 +27,8 @@
 -include_lib("erocci_core/include/occi_log.hrl").
 -include_lib("dbus/include/dbus_client.hrl").
 
+-include("occi_dbus.hrl").
+
 -define(IFACE_BACKEND, <<"org.ow2.erocci.backend">>).
 -define(IFACE_BACKEND_MIXIN, <<"org.ow2.erocci.backend.mixin">>).
 -define(IFACE_BACKEND_ACTION, <<"org.ow2.erocci.backend.action">>).
@@ -61,60 +63,185 @@ terminate(#state{proxy=Backend}) ->
 	_ -> ok
     end.
 
-save(#state{proxy=Backend}=State, #occi_node{}=Node) ->
+
+save(#state{proxy=Backend}=State, #occi_node{type=occi_resource, data=Res}=Node) ->
     ?info("[~p] save(~p)~n", [?MODULE, Node]),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"save">>, [occi_renderer_dbus:render(Node)]) of
-	ok ->
+    Kind = occi_cid:to_binary(occi_resource:get_cid(Res)),
+    Mixins = [ occi_cid:to_binary(Cid) || Cid <- sets:to_list(occi_resource:get_mixins(Res))],
+    Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
+	      || A <- occi_resource:get_attributes(Res) ],
+    Owner = io_lib:format("~p", [occi_node:owner(Node)]),
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveResource">>, 
+			 [Kind, Mixins, Attrs, Owner]) of
+	ok -> 
 	    {ok, State};
-	{error, Err} ->
+	{ok, _Ret} ->
+	    ?error("Backend invalid answer: ~p", [_Ret]),
+	    {{error, backend_error}, State};
+	{error, Err} -> {{error, Err}, State}
+    end;
+
+save(#state{proxy=Backend}=State, #occi_node{type=occi_link, data=Link}=Node) ->
+    ?info("[~p] save(~p)~n", [?MODULE, Node]),
+    Kind = occi_cid:to_binary(occi_resource:get_cid(Link)),
+    Mixins = [ occi_cid:to_binary(Cid) || Cid <- sets:to_list(occi_link:get_mixins(Link))],
+    Src = occi_uri:to_binary(occi_link:get_source(Link)),
+    Target = occi_uri:to_binary(occi_link:get_target(Link)),
+    Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
+	      || A <- occi_link:get_attributes(Link) ],
+    Owner = io_lib:format("~p", [occi_node:owner(Node)]),
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveLink">>, 
+			 [Kind, Mixins, Src, Target, Attrs, Owner]) of
+	ok -> 
+	    {ok, State};
+	{ok, _Ret} ->
+	    ?error("Backend invalid answer: ~p", [_Ret]),
+	    {{error, backend_error}, State};
+	{error, Err} -> 
+	    {{error, Err}, State}
+    end;
+
+save(#state{proxy=Backend}=State, #occi_node{type=occi_collection, data=Coll}=Node) ->
+    ?info("[~p] save(~p)~n", [?MODULE, Node]),
+    Id = occi_cid:to_binary(occi_collection:id(Coll)),
+    Entities = [ occi_uri:to_binary(E) || E <- occi_collection:entities(Coll) ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveMixin">>, [Id, Entities]) of
+	ok -> 
+	    {ok, State};
+	{ok, _Ret} ->
+	    ?error("Backend invalid answer: ~p", [_Ret]),
+	    {{error, backend_error}, State};
+	{error, Err} -> 
 	    {{error, Err}, State}
     end.
+
+
+delete(#state{i_mixin=false}=State, #occi_node{type=capabilities}) ->
+    % TODO: handle this in occi_store: do not query backend in case it does not support and return sthig like 403
+    {ok, State};
+
+delete(#state{proxy=Backend}=State, #occi_node{type=capabilities, data=Mixin}=Node) ->
+    ?info("[~p] delete(~p)~n", [?MODULE, Node]),
+    Id = occi_cid:to_binary(occi_mixin:id(Mixin)),
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"DelMixin">>, [Id]) of
+	ok ->
+	    {ok, State};
+	{ok, _Ret} ->
+	    ?error("Backend invalid answer: ~p", [_Ret]),
+	    {{error, backend_error}, State};
+	{error, Err} ->
+	    {{error, Err}, State}
+    end;
 
 delete(#state{proxy=Backend}=State, #occi_node{id=Uri}=Node) ->
     ?info("[~p] delete(~p)~n", [?MODULE, Node]),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"delete">>, [occi_uri:to_binary(Uri)]) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Delete">>, [occi_uri:to_binary(Uri)]) of
 	ok ->
 	    {ok, State};
+	{ok, _Ret} ->
+	    ?error("Backend invalid answer: ~p", [_Ret]),
+	    {{error, backend_error}, State};
 	{error, Err} ->
 	    {{error, Err}, State}
     end.
 
 
-update(#state{proxy=Backend}=State, #occi_node{}=Node) ->
+update(#state{i_mixin=false}=State, #occi_node{type=capabilities}) ->
+    % TODO: handle this in occi_store: do not query backend in case it does not support and return sthig like 403
+    {ok, State};
+    
+update(#state{proxy=Backend}=State, #occi_node{type=capabilities, data=Mixin}=Node) ->
     ?info("[~p] update(~p)~n", [?MODULE, Node]),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"update">>, [occi_renderer_dbus:render(Node)]) of
+    Id = occi_cid:to_binary(occi_mixin:id(Mixin)),
+    Location = occi_uri:to_binary(occi_node:id(Node)),
+    Owner = io_lib:format("~p", [occi_node:owner(Node)]),
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"AddMixin">>, [Id, Location, Owner]) of
 	ok ->
 	    {ok, State};
+	{ok, _Ret} ->
+	    ?error("Backend invalid answer: ~p", [_Ret]),
+	    {{error, backend_error}, State};
+	{error, Err} ->
+	    {{error, Err}, State}
+    end;    
+update(#state{proxy=Backend}=State, #occi_node{type=occi_collection, data=Coll}=Node) ->
+    ?info("[~p] update(~p)~n", [?MODULE, Node]),
+    Id = occi_cid:to_binary(occi_collection:id(Coll)),
+    Entities = [ occi_uri:to_binary(E) || E <- occi_collection:entities(Coll) ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"UpdateMixin">>, [Id, Entities]) of
+	ok ->
+	    {ok, State};
+	{ok, _Ret} ->
+	    ?error("Backend invalid answer: ~p", [_Ret]),
+	    {{error, backend_error}, State};
+	{error, Err} ->
+	    {{error, Err}, State}
+    end;    
+
+update(#state{proxy=Backend}=State, #occi_node{data=Entity}=Node) ->
+    ?info("[~p] update(~p)~n", [?MODULE, Node]),
+    Id = occi_node:id(Node),
+    Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
+	      || A <- 
+		     case Entity of
+			 #occi_resource{} -> occi_resource:get_attributes(Entity);
+			 #occi_link{} -> occi_link:get_attributes(Entity)
+		     end ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Update">>, [Id, Attrs]) of
+	ok ->
+	    {ok, State};
+	{ok, _Ret} ->
+	    ?error("Backend invalid answer: ~p", [_Ret]),
+	    {{error, backend_error}, State};
 	{error, Err} ->
 	    {{error, Err}, State}
     end.
 
 
-find(#state{proxy=Backend}=State, #occi_node{id=Uri}=_N) ->
-    ?info("[~p] find(~p)~n", [?MODULE, _N]),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"find">>, [occi_uri:to_binary(Uri)]) of
-	{ok, [Node]} ->
-	    {{ok, [occi_parser_dbus:parse(Node)]}, State};
+find(#state{proxy=Backend}=State, Node) ->
+    ?info("[~p] find(~p)~n", [?MODULE, Node]),
+    Id = occi_node:id(Node),
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Find">>, [occi_uri:to_binary(Id)]) of
+	{ok, []} ->
+	    {{ok, []}, State};
+	{ok, [?N_ENTITY, OpaqueId, Owner, Serial]} ->
+	    Res = #occi_node{id=Id, objid=OpaqueId, owner=Owner, etag=Serial, type=occi_entity},
+	    {{ok, [Res]}, State};
+	{ok, [?N_UNBOUNDED, OpaqueId, _, _]} ->
+	    Res = #occi_node{id=Id, objid=OpaqueId},
+	    {{ok, [Res]}, State};
+	{ok, _Res} ->
+	    ?error("Backend invalid answer: ~p", [_Res]),
+	    {{error, backend_error}, State};
 	{error, Err} ->
 	    {{error, Err}, State}
     end.
 
 
-load(#state{proxy=Backend}=State, #occi_node{id=Uri}=Node, _Opts) ->
-    ?info("[~p] load(~p)~n", [?MODULE, Uri]),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"load">>, [occi_renderer_dbus:render(Node)]) of
-	{ok, N} ->
-	    {{ok, occi_parser_dbus:parse(N)}, State};
+load(#state{proxy=Backend}=State, Node, _Opts) ->
+    ?info("[~p] load(~p)~n", [?MODULE, occi_node:objid(Node)]),
+    Id = occi_node:objid(Node),
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Load">>, [Id]) of
+	{ok, {Id, Kind, Mixins, Attributes}} ->
+	    Entity = occi_entity:new(occi_uri:parse(Id), Kind, Mixins, Attributes),
+	    {{ok, occi_node:data(Node, Entity)}, State};
 	{error, Err} ->
 	    {{error, Err}, State}
     end.
 
 
-action(#state{proxy=Backend}=State, #uri{}=Id, #occi_action{}=A) ->
-    ?info("[~p] action(~p, ~p)~n", [?MODULE, Id, A]),
-    Args = [occi_renderer_dbus:render(Id), 
-	    occi_renderer_dbus:render(A)],
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"load">>, Args) of
+action(#state{i_action=false}=State, #uri{}, #occi_action{}) ->
+   % TODO: handle this in occi_store: do not query backend in case it does not 
+   % support and return sthig like 403
+   {ok, State};
+
+action(#state{proxy=Backend}=State, #uri{}=Id, #occi_action{}=Action) ->
+    ?info("[~p] action(~p, ~p)~n", [?MODULE, Id, Action]),
+    EntityId = occi_uri:to_binary(Id), 
+    ActionId = occi_cid:to_binary(occi_action:id(Action)),
+    Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
+	      || A <- occi_action:get_attr_list(Action) ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Action">>, [EntityId, ActionId, Attrs]) of
 	ok ->
 	    {ok, State};
 	{error, Err} ->

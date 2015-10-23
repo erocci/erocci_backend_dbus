@@ -3,6 +3,9 @@
 
 -include_lib("dbus/include/dbus.hrl").
 
+-define(N_ENTITY, 0).
+-define(N_UNBOUNDED, 1).
+
 -define(TYPE_UNDEFINED, 0).
 -define(TYPE_CAPABILITIES, 1).
 -define(TYPE_RESOURCE, 2).
