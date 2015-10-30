@@ -19,7 +19,7 @@ TYPE_BOUNDED_COLL   = 4
 TYPE_UNBOUNDED_COLL = 5
 TYPE_MIXIN          = 6
 
-BACKEND_IFACE = 'org.ow2.erocci.backend'
+BACKEND_IFACE = 'org.ow2.erocci.backend.core'
 
 SIG_NODE = '(svvsyv)'
 
