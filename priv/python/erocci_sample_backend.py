@@ -9,7 +9,7 @@ import dbus
 import dbus.service
 import signal
 
-IFACE = "org.ow2.erocci.backend"
+IFACE = "org.ow2.erocci.backend.core"
 SERVICE = "org.ow2.erocci.backend.SampleService"
 
 # Entity tuple indices
@@ -68,17 +68,17 @@ class SampleService(dbus.service.Object):
         del self.__entities[id]
 
     ##
-    ## Interface: org.ow2.erocci.backend
+    ## Interface: org.ow2.erocci.backend.core
     ##
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='a{sv}', out_signature='')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='a{sv}', out_signature='')
     def Init(self, opts):
         return 
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='', out_signature='')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='', out_signature='')
     def Terminate(self):
         return 
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='ssasa{sv}s', out_signature='s')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ssasa{sv}s', out_signature='s')
     def SaveResource(self, id, kind, mixins, attributes, owner):
         serial = 1
         attributes["occi.core.links"] = []
@@ -86,7 +86,7 @@ class SampleService(dbus.service.Object):
         self.__add_to_categories(id, kind, mixins)
         return id
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='ssasssa{sv}s', out_signature='s')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ssasssa{sv}s', out_signature='s')
     def SaveLink(self, id, kind, mixins, src, target, attributes, owner):
         serial = 1
         attributes = attributes[A_SOURCE] = src
@@ -97,7 +97,7 @@ class SampleService(dbus.service.Object):
         self.__entities[target][E_ATTRS]['links'].append(id)
         return id
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='sa{sv}', out_signature='a{sv}')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa{sv}', out_signature='a{sv}')
     def Update(self, id, attributes):
         if id in self.__entities:
             (parent, kind, mixins, attributes2, owner, serial) = self.__entities[id]
@@ -111,7 +111,7 @@ class SampleService(dbus.service.Object):
             )
         return attributes2
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='sas', out_signature='')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sas', out_signature='')
     def SaveMixin(self, id, entities):
         self.__mixins[id] = set(entities)
         for entity in entities:
@@ -120,7 +120,7 @@ class SampleService(dbus.service.Object):
             self.__entities[id] = (parent, kind, mixins2, attributes, owner, serial+1)
         return
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='sas', out_signature='')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sas', out_signature='')
     def UpdateMixin(self, id, entities):
         if not id in self.__mixins:
             self.__mixins[id] = set()
@@ -134,7 +134,7 @@ class SampleService(dbus.service.Object):
     #
     # Find is called to get metadata of a node (entity, collection)
     #
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='s', out_signature='a(vss)')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='a(vss)')
     def Find(self, id):
         if id in self.__entities:
             (_parent, _kind, _mixins, _attributes, owner, serial) = self.__entities[id]
@@ -143,7 +143,7 @@ class SampleService(dbus.service.Object):
             # Return unbounded collection without collection, will be possibly empty
             return [(N_UNBOUNDED, id, "", 0)]
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='v', out_signature='ssasa{sv}')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='v', out_signature='ssasa{sv}')
     def Load(self, id):
         if id in self.__entities:
             (_parent, kind, mixins, attributes, _owner, _serial) = self.__entities[id]
@@ -158,7 +158,7 @@ class SampleService(dbus.service.Object):
     # List / Next are called respectively to get metadata and content of a
     # collection
     #
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='sa{sv}', out_signature='v')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa{sv}', out_signature='v')
     def List(self, id, _filters):
         if id in self.__kinds:
             return (B_KIND, id)
@@ -168,7 +168,7 @@ class SampleService(dbus.service.Object):
             return (B_UNBOUNDED, id)
         
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='vuu', out_signature='a(ss)')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='vuu', out_signature='a(ss)')
     def Next(self, iter, start, items):
         (type, _id) = iter
         full_ids = []
@@ -182,7 +182,7 @@ class SampleService(dbus.service.Object):
         return [ (id, entity[E_OWNER])
                  for (id, entity) in self.__entities.items()[start:(start+items)] ]
 
-    @dbus.service.method("org.ow2.erocci.backend", in_signature='s', out_signature='')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='')
     def Delete(self, id):
         if id in self.__kinds:
             for i in self.__kinds[id]:
