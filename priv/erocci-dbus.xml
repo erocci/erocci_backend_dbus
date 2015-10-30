@@ -24,7 +24,7 @@
     </xs:documentation>
   </xs:annotation>
   
-  <interface name="org.ow2.erocci.backend">
+  <interface name="org.ow2.erocci.backend.core">
     <xs:annotation>
       <xs:documentation>Core interface for erocci backend</xs:documentation>
     </xs:annotation>
