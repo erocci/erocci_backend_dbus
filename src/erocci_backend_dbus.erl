@@ -29,7 +29,7 @@
 
 -include("occi_dbus.hrl").
 
--define(IFACE_BACKEND, <<"org.ow2.erocci.backend">>).
+-define(IFACE_BACKEND, <<"org.ow2.erocci.backend.core">>).
 -define(IFACE_BACKEND_MIXIN, <<"org.ow2.erocci.backend.mixin">>).
 -define(IFACE_BACKEND_ACTION, <<"org.ow2.erocci.backend.action">>).
 
