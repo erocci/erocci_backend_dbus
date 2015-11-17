@@ -200,34 +200,60 @@ update(#state{proxy=Backend}=State, #occi_node{data=Entity}=Node) ->
 
 find(#state{proxy=Backend}=State, Node) ->
     ?info("[~p] find(~p)~n", [?MODULE, Node]),
-    Id = occi_node:id(Node),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Find">>, [occi_uri:to_binary(Id)]) of
-	{ok, []} ->
-	    {{ok, []}, State};
-	{ok, [?N_ENTITY, OpaqueId, Owner, Serial]} ->
-	    Res = #occi_node{id=Id, objid=OpaqueId, owner=Owner, etag=Serial, type=occi_entity},
-	    {{ok, [Res]}, State};
-	{ok, [?N_UNBOUNDED, OpaqueId, _, _]} ->
-	    Res = #occi_node{id=Id, objid=OpaqueId},
-	    {{ok, [Res]}, State};
-	{ok, _Res} ->
-	    ?error("Backend invalid answer: ~p", [_Res]),
-	    {{error, backend_error}, State};
-	{error, Err} ->
-	    {{error, Err}, State}
+    case occi_node:type(Node) of
+	capabilities ->
+	    Schema = dbus_properties_proxy:get(Backend, ?IFACE_BACKEND, 'schema'),
+	    Ext = occi_parser_xml:parse_extension(Schema),
+	    Kinds = occi_extension:kinds(Ext),
+	    Mixins = occi_extension:mixins(Ext),
+	    {{ok, [#occi_node{data={Kinds, Mixins, []}}]}, State};
+	occi_collection ->
+	    find_bounded(State, Node);
+	_ ->
+	    Id = occi_node:id(Node),
+	    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Find">>, [occi_uri:to_binary(Id)]) of
+		{ok, []} ->
+		    {{ok, []}, State};
+		{ok, [?N_ENTITY, OpaqueId, Owner, Serial]} ->
+		    Res = #occi_node{id=Id, objid=OpaqueId, owner=Owner, etag=Serial, type=occi_entity},
+		    {{ok, [Res]}, State};
+		{ok, [?N_UNBOUNDED, _, _, _]} ->
+		    find_unbounded(State, Node);
+		{ok, _Res} ->
+		    ?error("Backend invalid answer: ~p", [_Res]),
+		    {{error, backend_error}, State};
+		{error, Err} ->
+		    {{error, Err}, State}
+	    end
     end.
 
 
-load(#state{proxy=Backend}=State, Node, _Opts) ->
+find_bounded(#state{proxy=Backend}=State, Node) ->
+    {{ok, []}, State}.
+
+
+find_unbounded(#state{proxy=Backend}=State, Node) ->
+    {{ok, []}, State}.
+    
+
+load(#state{proxy=Backend}=State, Node, Opts) ->
     ?info("[~p] load(~p)~n", [?MODULE, occi_node:objid(Node)]),
-    Id = occi_node:objid(Node),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Load">>, [Id]) of
-	{ok, {Id, Kind, Mixins, Attributes}} ->
-	    Entity = occi_entity:new(occi_uri:parse(Id), Kind, Mixins, Attributes),
-	    {{ok, occi_node:data(Node, Entity)}, State};
+    case occi_node:type(Node) of
+	occi_collection ->
+	    next(State, Node, Opts);
+	_ ->
+	    Id = occi_node:objid(Node),
+	    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Load">>, [Id]) of
+		{ok, {Id, Kind, Mixins, Attributes}} ->
+		    Entity = occi_entity:new(occi_uri:parse(Id), Kind, Mixins, Attributes),
+		    {{ok, occi_node:data(Node, Entity)}, State};
 	{error, Err} ->
-	    {{error, Err}, State}
+		    {{error, Err}, State}
+	    end
     end.
+
+next(State, Node, Opts) ->
+    {{ok, Node}, State}.
 
 
 action(#state{i_action=false}=State, #uri{}, #occi_action{}) ->
