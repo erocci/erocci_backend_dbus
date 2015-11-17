@@ -134,14 +134,14 @@ class SampleService(dbus.service.Object):
     #
     # Find is called to get metadata of a node (entity, collection)
     #
-    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='a(vss)')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='a(yvss)')
     def Find(self, id):
         if id in self.__entities:
             (_parent, _kind, _mixins, _attributes, owner, serial) = self.__entities[id]
             return [(N_ENTITY, id, owner, serial)]
         else:
             # Return unbounded collection without collection, will be possibly empty
-            return [(N_UNBOUNDED, id, "", 0)]
+            return [(N_UNBOUNDED, id, "", "")]
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='v', out_signature='ssasa{sv}')
     def Load(self, id):
@@ -234,5 +234,6 @@ class SampleService(dbus.service.Object):
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 DBusGMainLoop(set_as_default=True)
 service = SampleService()
+print("%s" % (service.connection.activate_name_owner(SERVICE),))
 Gtk.main()
 
