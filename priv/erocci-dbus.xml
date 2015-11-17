@@ -172,7 +172,7 @@
           * (byte): type (0: entity, 1: unbounded collection)
           * (variant): backend internal opaque id
           * (string): owner
-          * (string): serial
+          * (unsigned int): serial
         </xs:documentation>
       </xs:annotation>
       
