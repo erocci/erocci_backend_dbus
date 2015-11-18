@@ -66,13 +66,14 @@ terminate(#state{proxy=Backend}) ->
 
 save(#state{proxy=Backend}=State, #occi_node{type=occi_resource, data=Res}=Node) ->
     ?info("[~p] save(~p)~n", [?MODULE, Node]),
+    Id = occi_uri:to_binary(occi_resource:id(Res)),
     Kind = occi_cid:to_binary(occi_resource:get_cid(Res)),
     Mixins = [ occi_cid:to_binary(Cid) || Cid <- sets:to_list(occi_resource:get_mixins(Res))],
-    Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
-              || A <- occi_resource:get_attributes(Res) ],
+    Attrs = [ { occi_attribute:id(A), occi_attribute:value(A)} 
+              || A <- occi_resource:get_attributes(Res), occi_attribute:value(A) =/= undefined ],
     Owner = io_lib:format("~p", [occi_node:owner(Node)]),
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveResource">>, 
-                         [Kind, Mixins, Attrs, Owner]) of
+                         [Id, Kind, Mixins, Attrs, Owner]) of
         ok -> 
             {ok, State};
         {ok, _Ret} ->
@@ -83,6 +84,7 @@ save(#state{proxy=Backend}=State, #occi_node{type=occi_resource, data=Res}=Node)
 
 save(#state{proxy=Backend}=State, #occi_node{type=occi_link, data=Link}=Node) ->
     ?info("[~p] save(~p)~n", [?MODULE, Node]),
+    Id = occi_uri:to_binary(occi_resource:id(Link)),
     Kind = occi_cid:to_binary(occi_resource:get_cid(Link)),
     Mixins = [ occi_cid:to_binary(Cid) || Cid <- sets:to_list(occi_link:get_mixins(Link))],
     Src = occi_uri:to_binary(occi_link:get_source(Link)),
@@ -91,7 +93,7 @@ save(#state{proxy=Backend}=State, #occi_node{type=occi_link, data=Link}=Node) ->
               || A <- occi_link:get_attributes(Link) ],
     Owner = io_lib:format("~p", [occi_node:owner(Node)]),
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveLink">>, 
-                         [Kind, Mixins, Src, Target, Attrs, Owner]) of
+                         [Id, Kind, Mixins, Src, Target, Attrs, Owner]) of
         ok -> 
             {ok, State};
         {ok, _Ret} ->
@@ -202,7 +204,7 @@ find(#state{proxy=Backend}=State, Node) ->
     ?info("[~p] find(~p)~n", [?MODULE, Node]),
     case occi_node:type(Node) of
         capabilities ->
-			find_user_mixins(State, Node);
+            find_user_mixins(State, Node);
         occi_collection ->
             find_bounded(State, Node);
         _ ->
@@ -210,10 +212,10 @@ find(#state{proxy=Backend}=State, Node) ->
             case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Find">>, [occi_uri:to_binary(Id)]) of
                 {ok, []} ->
                     {{ok, []}, State};
-                {ok, [?N_ENTITY, OpaqueId, Owner, Serial]} ->
+                {ok, [{?N_ENTITY, #dbus_variant{value=OpaqueId}, Owner, Serial}]} ->
                     Res = #occi_node{id=Id, objid=OpaqueId, owner=Owner, etag=Serial, type=occi_entity},
                     {{ok, [Res]}, State};
-                {ok, [?N_UNBOUNDED, _, _, _]} ->
+                {ok, [{?N_UNBOUNDED, _, _, _}]} ->
                     find_unbounded(State, Node);
                 {ok, _Res} ->
                     ?error("Backend invalid answer: ~p", [_Res]),
@@ -225,32 +227,32 @@ find(#state{proxy=Backend}=State, Node) ->
 
 
 find_user_mixins(#state{i_mixin=false}=State, Node) ->
-	{{ok, [Node#occi_node{data={[], [], []}}]}, State};
+    {{ok, [Node#occi_node{data={[], [], []}}]}, State};
 
 find_user_mixins(#state{proxy=_Backend}=State, _Node) ->
-	{{ok, [#occi_node{data={[], [], []}}]}, State}.
+    {{ok, [#occi_node{data={[], [], []}}]}, State}.
 
 
 find_bounded(#state{proxy=Backend}=State, Node) ->
-	Cid = occi_node:objid(Node),
-	case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_cid:to_binary(Cid)]) of
-		{ok, {#dbus_variant{value=ColId}, Serial}} ->
-			Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection},
-			{{ok, [Res]}, State};
-		{error, Err} ->
-			{{error, Err}, State}
-	end.
+    Cid = occi_node:objid(Node),
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_cid:to_binary(Cid)]) of
+        {ok, {#dbus_variant{value=ColId}, Serial}} ->
+            Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection},
+            {{ok, [Res]}, State};
+        {error, Err} ->
+            {{error, Err}, State}
+    end.
 
 
 find_unbounded(#state{proxy=Backend}=State, Node) ->
-	Id = occi_node:objid(Node),
-	case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_uri:to_binary(Id)]) of
-		{ok, {#dbus_variant{value=ColId}, Serial}} ->
-			Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection},
-			{{ok, [Res]}, State};
-		{error, Err} ->
-			{{error, Err}, State}
-	end.
+    Id = occi_node:objid(Node),
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_uri:to_binary(Id)]) of
+        {ok, {#dbus_variant{value=ColId}, Serial}} ->
+            Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection},
+            {{ok, [Res]}, State};
+        {error, Err} ->
+            {{error, Err}, State}
+    end.
 
 
 load(#state{proxy=Backend}=State, Node, Opts) ->
@@ -258,8 +260,8 @@ load(#state{proxy=Backend}=State, Node, Opts) ->
     case occi_node:type(Node) of
         occi_collection ->
             next(State, Node, Opts);
-		capabilities ->
-			{{ok, [Node]}, State};
+        capabilities ->
+            {{ok, [Node]}, State};
         _ ->
             Id = occi_node:objid(Node),
             case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Load">>, [Id]) of
@@ -273,17 +275,17 @@ load(#state{proxy=Backend}=State, Node, Opts) ->
 
 
 next(#state{proxy=Backend}=State, Node, _Opts) ->
-	It = occi_node:objid(Node),
-	Start = 0,
-	Items = 0,
-	case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Next">>, [It, Start, Items]) of
-		{ok, Items} ->
-			Col = occi_collection:new(occi_node:id(Node), [ occi_uri:parse(Item) || Item <- Items ]),
-			Res = Node#occi_node{data=Col},
-			{{ok, [Res]}, State};
-		{error, Err} ->
-			{{error, Err}, State}
-	end.
+    It = occi_node:objid(Node),
+    Start = 0,
+    Items = 0,
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Next">>, [It, Start, Items]) of
+        {ok, Items} ->
+            Col = occi_collection:new(occi_node:id(Node), [ occi_uri:parse(Item) || Item <- Items ]),
+            Res = Node#occi_node{data=Col},
+            {{ok, [Res]}, State};
+        {error, Err} ->
+            {{error, Err}, State}
+    end.
 
 
 action(#state{i_action=false}=State, #uri{}, #occi_action{}) ->

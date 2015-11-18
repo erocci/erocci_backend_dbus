@@ -142,14 +142,18 @@ class SampleService(dbus.service.Object):
     #
     # Find is called to get metadata of a node (entity, collection)
     #
-    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='a(yvss)')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='a(yvsu)')
     def Find(self, id):
         if id in self.__entities:
             (_parent, _kind, _mixins, _attributes, owner, serial) = self.__entities[id]
             return [(N_ENTITY, id, owner, serial)]
         else:
-            # Return unbounded collection without collection, will be possibly empty
-            return [(N_UNBOUNDED, id, "", 0)]
+            col = [ entity_id for entity_id in self.__entities if entity_id.startswith(id) ]
+            if col == []:
+                return []
+            else:
+                # Return unbounded collection without collection, will be possibly empty
+                return [(N_UNBOUNDED, id, "", 0)]
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='v', out_signature='ssasa{sv}')
     def Load(self, id):
