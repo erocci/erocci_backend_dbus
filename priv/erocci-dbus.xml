@@ -236,7 +236,7 @@
           In:
           * opaque_id (variant): collection internal id
           * start (unsigned int): first item index (start with 0)
-          * items (unsigned int): number of items
+          * items (unsigned int): number of items (0 for infinite)
         </xs:documentation>
         <xs:documentation>
           Out:

@@ -187,8 +187,13 @@ class SampleService(dbus.service.Object):
         else:
             full_ids = [ entity_id for entity_id in self.__entities if entity_id.startswith(id) ]
 
-        return [ (id, entity[E_OWNER])
-                 for (id, entity) in self.__entities.items()[start:(start+items)] ]
+        if items == 0:
+            return [ (id, entity[E_OWNER])
+                     for (id, entity) in self.__entities.items() ]
+        else:
+            return [ (id, entity[E_OWNER])
+                     for (id, entity) in self.__entities.items()[start:(start+items)] ]
+        
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='')
     def Delete(self, id):
