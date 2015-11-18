@@ -43,10 +43,10 @@
          load/3,
          action/3]).
 
--record(state, {conn      :: dbus_connection(),
-                proxy     :: dbus_proxy(),
-                i_mixin   :: boolean(),
-                i_action  :: boolean()}).
+-record(state, {conn       :: dbus_connection(),
+                proxy      :: dbus_proxy(),
+                i_mixin    :: boolean(),
+                i_action   :: boolean()}).
 
 %%%===================================================================
 %%% occi_backend callbacks
@@ -117,7 +117,7 @@ save(#state{proxy=Backend}=State, #occi_node{type=occi_collection, data=Coll}=No
 
 
 delete(#state{i_mixin=false}=State, #occi_node{type=capabilities}) ->
-                                                % TODO: handle this in occi_store: do not query backend in case it does not support and return sthig like 403
+    % TODO: handle this in occi_store: do not query backend in case it does not support and return sthig like 403
     {ok, State};
 
 delete(#state{proxy=Backend}=State, #occi_node{type=capabilities, data=Mixin}=Node) ->
@@ -147,7 +147,7 @@ delete(#state{proxy=Backend}=State, #occi_node{id=Uri}=Node) ->
 
 
 update(#state{i_mixin=false}=State, #occi_node{type=capabilities}) ->
-                                                % TODO: handle this in occi_store: do not query backend in case it does not support and return sthig like 403
+    % TODO: handle this in occi_store: do not query backend in case it does not support and return sthig like 403
     {ok, State};
 
 update(#state{proxy=Backend}=State, #occi_node{type=capabilities, data=Mixin}=Node) ->
@@ -202,11 +202,7 @@ find(#state{proxy=Backend}=State, Node) ->
     ?info("[~p] find(~p)~n", [?MODULE, Node]),
     case occi_node:type(Node) of
         capabilities ->
-            Schema = dbus_properties_proxy:get(Backend, ?IFACE_BACKEND, 'schema'),
-            Ext = occi_parser_xml:parse_extension(Schema),
-            Kinds = occi_extension:kinds(Ext),
-            Mixins = occi_extension:mixins(Ext),
-            {{ok, [#occi_node{data={Kinds, Mixins, []}}]}, State};
+			find_user_mixins(State, Node);
         occi_collection ->
             find_bounded(State, Node);
         _ ->
@@ -228,12 +224,33 @@ find(#state{proxy=Backend}=State, Node) ->
     end.
 
 
+find_user_mixins(#state{i_mixin=false}=State, Node) ->
+	{{ok, [Node#occi_node{data={[], [], []}}]}, State};
+
+find_user_mixins(#state{proxy=_Backend}=State, _Node) ->
+	{{ok, [#occi_node{data={[], [], []}}]}, State}.
+
+
 find_bounded(#state{proxy=Backend}=State, Node) ->
-    {{ok, []}, State}.
+	Cid = occi_node:objid(Node),
+	case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_cid:to_binary(Cid)]) of
+		{ok, {#dbus_variant{value=ColId}, Serial}} ->
+			Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection},
+			{{ok, [Res]}, State};
+		{error, Err} ->
+			{{error, Err}, State}
+	end.
 
 
 find_unbounded(#state{proxy=Backend}=State, Node) ->
-    {{ok, []}, State}.
+	Id = occi_node:objid(Node),
+	case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_uri:to_binary(Id)]) of
+		{ok, {#dbus_variant{value=ColId}, Serial}} ->
+			Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection},
+			{{ok, [Res]}, State};
+		{error, Err} ->
+			{{error, Err}, State}
+	end.
 
 
 load(#state{proxy=Backend}=State, Node, Opts) ->
@@ -241,6 +258,8 @@ load(#state{proxy=Backend}=State, Node, Opts) ->
     case occi_node:type(Node) of
         occi_collection ->
             next(State, Node, Opts);
+		capabilities ->
+			{{ok, [Node]}, State};
         _ ->
             Id = occi_node:objid(Node),
             case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Load">>, [Id]) of
@@ -252,13 +271,24 @@ load(#state{proxy=Backend}=State, Node, Opts) ->
             end
     end.
 
-next(State, Node, Opts) ->
-    {{ok, Node}, State}.
+
+next(#state{proxy=Backend}=State, Node, _Opts) ->
+	It = occi_node:objid(Node),
+	Start = 0,
+	Items = 0,
+	case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Next">>, [It, Start, Items]) of
+		{ok, Items} ->
+			Col = occi_collection:new(occi_node:id(Node), [ occi_uri:parse(Item) || Item <- Items ]),
+			Res = Node#occi_node{data=Col},
+			{{ok, [Res]}, State};
+		{error, Err} ->
+			{{error, Err}, State}
+	end.
 
 
 action(#state{i_action=false}=State, #uri{}, #occi_action{}) ->
-                                                % TODO: handle this in occi_store: do not query backend in case it does not 
-                                                % support and return sthig like 403
+    % TODO: handle this in occi_store: do not query backend in case it does not 
+    % support and return sthig like 403
     {ok, State};
 
 action(#state{proxy=Backend}=State, #uri{}=Id, #occi_action{}=Action) ->
@@ -308,7 +338,7 @@ init_service(#state{proxy=Backend}=State, Opts) ->
         ok ->
             ?debug("Initialization ok...", []),
             Schema = dbus_properties_proxy:get(Backend, ?IFACE_BACKEND, 'schema'),
-            {ok, [Schema], 
+            {ok, [{schemas, [Schema]}], 
              State#state{
                i_mixin=dbus_proxy:has_interface(Backend, ?IFACE_BACKEND_MIXIN),
                i_action=dbus_proxy:has_interface(Backend, ?IFACE_BACKEND_ACTION)}};
