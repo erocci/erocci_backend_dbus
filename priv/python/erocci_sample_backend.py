@@ -5,6 +5,7 @@
 from gi.repository import Gtk
 from dbus.mainloop.glib import DBusGMainLoop
 
+import os
 import dbus
 import dbus.service
 import signal
@@ -39,7 +40,14 @@ C_MIXIN = 1
 C_UNBOUNDED = 2
 
 def get_schema():
-    return ""
+    dirname = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.abspath(os.path.join(dirname, "occi.xml"))
+    content = ''
+    with open(path, 'r') as fh:
+        for line in fh:
+            content = content + line
+        print "Load schema from %s\n" % (path,)
+    return content
 
 class SampleService(dbus.service.Object):
 
@@ -141,7 +149,7 @@ class SampleService(dbus.service.Object):
             return [(N_ENTITY, id, owner, serial)]
         else:
             # Return unbounded collection without collection, will be possibly empty
-            return [(N_UNBOUNDED, id, "", "")]
+            return [(N_UNBOUNDED, id, "", 0)]
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='v', out_signature='ssasa{sv}')
     def Load(self, id):
@@ -158,14 +166,14 @@ class SampleService(dbus.service.Object):
     # List / Next are called respectively to get metadata and content of a
     # collection
     #
-    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa{sv}', out_signature='v')
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa{sv}', out_signature='vu')
     def List(self, id, _filters):
         if id in self.__kinds:
-            return (B_KIND, id)
+            return (id, 0)
         elif id in self.__mixins:
-            return (B_MIXIN, id)
+            return (id, 0)
         else:
-            return (B_UNBOUNDED, id)
+            return (id, 0)
         
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='vuu', out_signature='a(ss)')
