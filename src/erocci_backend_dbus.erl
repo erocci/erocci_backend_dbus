@@ -210,7 +210,7 @@ find(#state{proxy=Backend}=State, Node) ->
             case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Find">>, [occi_uri:to_binary(Id)]) of
                 {ok, []} ->
                     {{ok, []}, State};
-                {ok, [{?N_ENTITY, #dbus_variant{value=OpaqueId}, Owner, Serial}]} ->
+                {ok, [{?N_ENTITY, OpaqueId, Owner, Serial}]} ->
                     Res = #occi_node{id=Id, objid=OpaqueId, owner=Owner, etag=Serial, type=occi_entity},
                     {{ok, [Res]}, State};
                 {ok, [{?N_UNBOUNDED, _, _, _}]} ->
@@ -233,7 +233,7 @@ find_user_mixins(#state{proxy=_Backend}=State, _Node) ->
 
 find_unbounded(#state{proxy=Backend}=State, Node) ->
     Id = occi_node:objid(Node),
-	Filters = [],
+    Filters = [],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_uri:to_binary(Id), Filters]) of
         {ok, {ColId, Serial}} ->
             ?debug("Set collection id: ~p", [ColId]),
@@ -259,8 +259,8 @@ load(#state{proxy=Backend}=State, Node, Opts) ->
         _ ->
             Id = occi_node:objid(Node),
             case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Load">>, [Id]) of
-                {ok, {Id, Kind, Mixins, Attributes}} ->
-                    Entity = occi_entity:new(occi_uri:parse(Id), Kind, Mixins, Attributes),
+                {ok, {_Id, Kind, Mixins, Attributes}} ->
+                    Entity = occi_entity:new(occi_node:id(Node), Kind, Mixins, cast_attributes(Attributes)),
                     {{ok, occi_node:data(Node, Entity)}, State};
                 {error, Err} ->
                     {{error, Err}, State}
@@ -270,12 +270,12 @@ load(#state{proxy=Backend}=State, Node, Opts) ->
 
 list_bounded(#state{proxy=Backend}=State, Node, Opts) ->
     Cid = occi_node:objid(Node),
-	Filters = [],
+    Filters = [],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_cid:to_binary(Cid), Filters]) of
         {ok, {ColId, Serial}} ->
             ?debug("Set collection id: ~p", [ColId]),
             Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection, 
-							 data=occi_collection:new(Cid)},
+                             data=occi_collection:new(Cid)},
             next(State, Res, Opts);
         {error, Err} ->
             {{error, Err}, State}
@@ -289,13 +289,13 @@ next(#state{proxy=Backend}=State, Node, _Opts) ->
     NrItems = 0,
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Next">>, [It, Start, NrItems]) of
         {ok, Items} ->
-			Entities = [ occi_uri:parse(Item) || {Item, _Owner} <- Items ],
-			Col = case Node#occi_node.data of
-					  undefined ->
-						  occi_collection:new(occi_node:id(Node), Entities);
-					  #occi_collection{}=C ->
-						  occi_collection:add_entities(C, Entities)
-				  end,
+            Entities = [ occi_uri:parse(Item) || {Item, _Owner} <- Items ],
+            Col = case Node#occi_node.data of
+                      undefined ->
+                          occi_collection:new(occi_node:id(Node), Entities);
+                      #occi_collection{}=C ->
+                          occi_collection:add_entities(C, Entities)
+                  end,
             Res = Node#occi_node{data=Col},
             {{ok, Res}, State};
         {error, Err} ->
@@ -359,12 +359,20 @@ init_service(#state{proxy=Backend}=State, Opts) ->
              State#state{
                i_mixin=dbus_proxy:has_interface(Backend, ?IFACE_BACKEND_MIXIN),
                i_action=dbus_proxy:has_interface(Backend, ?IFACE_BACKEND_ACTION)}};
-		{ok, Msg} ->
-			?error("Invalid Init: ~p", [Msg]),
-			{error, invalid_backend};
+        {ok, Msg} ->
+            ?error("Invalid Init: ~p", [Msg]),
+            {error, invalid_backend};
         {error, {Code, Err}} ->
             ?debug("Error initializing: ~n"
                    "Code=~s~n"
                    "Reason=~n~s~n", [Code, Err]),
             {error, Err}
     end.
+
+cast_attributes(Attrs) ->
+    cast_attributes(Attrs, []).
+
+cast_attributes([], Acc) ->
+    lists:reverse(Acc);
+cast_attributes([ {Key, #dbus_variant{value=Value} } | Tail ], Acc) ->
+    cast_attributes(Tail, [ {Key, Value} | Acc]).
