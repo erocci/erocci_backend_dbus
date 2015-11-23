@@ -226,7 +226,7 @@ class SampleService(dbus.service.Object):
     def Get(self, interface_name, property_name):
         if interface_name == IFACE:
             if property_name == 'schema':
-                return ('schema', get_schema())
+                return get_schema()
             else:
                 raise dbus.exception.DBusException(
                     'org.ow2.erocci.UnknownProperty',
