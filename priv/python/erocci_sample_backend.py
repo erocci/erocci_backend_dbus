@@ -91,7 +91,7 @@ class SampleService(dbus.service.Object):
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ssasa{sv}s', out_signature='s')
     def SaveResource(self, resid, kind, mixins, attributes, owner):
         serial = 1
-        attributes["occi.core.links"] = []
+        attributes["occi.core.links"] = dbus.Array([], signature='s')
         self.__entities[resid] = (RESOURCE, kind, mixins, attributes, owner, serial)
         self.__add_to_categories(resid, kind, mixins)
         return resid
