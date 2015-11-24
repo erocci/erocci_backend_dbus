@@ -232,12 +232,12 @@ find_user_mixins(#state{proxy=_Backend}=State, _Node) ->
 
 
 find_unbounded(#state{proxy=Backend}=State, Node) ->
-    Id = occi_node:objid(Node),
+    Id = occi_node:id(Node),
     Filters = [],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_uri:to_binary(Id), Filters]) of
         {ok, {ColId, Serial}} ->
             ?debug("Set collection id: ~p", [ColId]),
-            Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection},
+            Res = #occi_node{id=Id, objid=ColId, etag=Serial, type=occi_collection},
             {{ok, [Res]}, State};
         {error, Err} ->
             {{error, Err}, State}
