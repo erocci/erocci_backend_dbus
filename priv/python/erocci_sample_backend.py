@@ -99,12 +99,12 @@ class SampleService(dbus.service.Object):
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ssasssa{sv}s', out_signature='s')
     def SaveLink(self, linkid, kind, mixins, src, target, attributes, owner):
         serial = 1
-        attributes = attributes[A_SOURCE] = src
-        attributes = attributes[A_TARGET] = target
+        attributes[A_SOURCE] = src
+        attributes[A_TARGET] = target
         self.__entities[linkid] = (LINK, kind, mixins, attributes, owner, serial)
         self.__add_to_categories(linkid, kind, mixins)
-        self.__entities[src][E_ATTRS]['links'].append(linkid)
-        self.__entities[target][E_ATTRS]['links'].append(linkid)
+        self.__entities[src][E_ATTRS]['occi.core.links'].append(linkid)
+        self.__entities[target][E_ATTRS]['occi.core.links'].append(linkid)
         return linkid
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa{sv}', out_signature='a{sv}')

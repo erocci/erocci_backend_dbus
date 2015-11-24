@@ -94,7 +94,7 @@ save(#state{proxy=Backend}=State, #occi_node{type=occi_link, data=Link}=Node) ->
     Owner = iolist_to_binary(io_lib:format("~p", [occi_node:owner(Node)])),
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveLink">>, 
                          [Id, Kind, Mixins, Src, Target, Attrs, Owner]) of
-        ok -> 
+        {ok, Id} -> 
             {ok, State};
         {ok, _Ret} ->
             ?error("Backend invalid answer: ~p", [_Ret]),
