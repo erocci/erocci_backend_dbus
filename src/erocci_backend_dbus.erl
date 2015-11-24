@@ -84,14 +84,14 @@ save(#state{proxy=Backend}=State, #occi_node{type=occi_resource, data=Res}=Node)
 
 save(#state{proxy=Backend}=State, #occi_node{type=occi_link, data=Link}=Node) ->
     ?info("[~p] save(~p)~n", [?MODULE, Node]),
-    Id = occi_uri:to_binary(occi_resource:id(Link)),
-    Kind = occi_cid:to_binary(occi_resource:get_cid(Link)),
+    Id = occi_uri:to_binary(occi_node:id(Node)),
+    Kind = occi_cid:to_binary(occi_link:get_cid(Link)),
     Mixins = [ occi_cid:to_binary(Cid) || Cid <- sets:to_list(occi_link:get_mixins(Link))],
     Src = occi_uri:to_binary(occi_link:get_source(Link)),
     Target = occi_uri:to_binary(occi_link:get_target(Link)),
     Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
               || A <- occi_link:get_attributes(Link) ],
-    Owner = io_lib:format("~p", [occi_node:owner(Node)]),
+    Owner = iolist_to_binary(io_lib:format("~p", [occi_node:owner(Node)])),
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveLink">>, 
                          [Id, Kind, Mixins, Src, Target, Attrs, Owner]) of
         ok -> 
