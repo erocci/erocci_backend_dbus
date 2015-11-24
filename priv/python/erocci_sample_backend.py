@@ -194,11 +194,9 @@ class SampleService(dbus.service.Object):
             full_ids = [ entity_id for entity_id in self.__entities if entity_id.startswith(colid) ]
 
         if items == 0:
-            return [ (id, entity[E_OWNER])
-                     for (id, entity) in self.__entities.items() ]
+            return [ (id, self.__entities[id][E_OWNER]) for id in full_ids ]
         else:
-            return [ (id, entity[E_OWNER])
-                     for (id, entity) in self.__entities.items()[start:(start+items)] ]
+            return [ (id, self.__entities[id][E_OWNER]) for id in full_ids ]
         
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='')
