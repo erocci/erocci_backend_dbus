@@ -375,4 +375,4 @@ cast_attributes(Attrs) ->
 cast_attributes([], Acc) ->
     lists:reverse(Acc);
 cast_attributes([ {Key, #dbus_variant{value=Value} } | Tail ], Acc) ->
-    cast_attributes(Tail, [ {Key, Value} | Acc]).
+    cast_attributes(Tail, [ {?attr_to_atom(Key), Value} | Acc]).
