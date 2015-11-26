@@ -4,7 +4,7 @@ PROJECT_VERSION = $(shell git describe --always --tags 2> /dev/null || echo $(ve
 
 DEPS = erocci_core dbus
 dep_erocci_core = git https://github.com/erocci/erocci_core.git master
-dep_dbus = git git://github.com/lizenn/erlang-dbus.git 0.2-12-ge6cabcd
+dep_dbus = git git://github.com/lizenn/erlang-dbus.git 0.2-13-g977f403
 
 include erlang.mk
 
