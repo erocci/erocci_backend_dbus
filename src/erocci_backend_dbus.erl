@@ -69,9 +69,9 @@ save(#state{proxy=Backend}=State, #occi_node{type=occi_resource, data=Res}=Node)
     Id = occi_uri:to_binary(occi_node:id(Node)),
     Kind = occi_cid:to_binary(occi_resource:get_cid(Res)),
     Mixins = [ occi_cid:to_binary(Cid) || Cid <- sets:to_list(occi_resource:get_mixins(Res))],
-    Attrs = [ { occi_attribute:id(A), occi_attribute:value(A)} 
+    Attrs = [ render_attribute(A)
               || A <- occi_resource:get_attributes(Res), occi_attribute:value(A) =/= undefined ],
-    Owner = io_lib:format("~p", [occi_node:owner(Node)]),
+    Owner = iolist_to_binary(io_lib:format("~p", [occi_node:owner(Node)])),
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveResource">>, 
                          [Id, Kind, Mixins, Attrs, Owner]) of
         {ok, Id} -> 
@@ -89,7 +89,7 @@ save(#state{proxy=Backend}=State, #occi_node{type=occi_link, data=Link}=Node) ->
     Mixins = [ occi_cid:to_binary(Cid) || Cid <- sets:to_list(occi_link:get_mixins(Link))],
     Src = occi_uri:to_binary(occi_link:get_source(Link)),
     Target = occi_uri:to_binary(occi_link:get_target(Link)),
-    Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
+    Attrs = [ render_attribute(A)
               || A <- occi_link:get_attributes(Link) ],
     Owner = iolist_to_binary(io_lib:format("~p", [occi_node:owner(Node)])),
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveLink">>, 
@@ -183,7 +183,7 @@ update(#state{proxy=Backend}=State, #occi_node{type=occi_collection, data=Coll}=
 update(#state{proxy=Backend}=State, #occi_node{data=Entity}=Node) ->
     ?info("[~p] update(~p)~n", [?MODULE, Node]),
     Id = occi_node:id(Node),
-    Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
+    Attrs = [ render_attribute(A)
               || A <- 
                      case Entity of
                          #occi_resource{} -> occi_resource:get_attributes(Entity);
@@ -260,7 +260,7 @@ load(#state{proxy=Backend}=State, Node, Opts) ->
             Id = occi_node:objid(Node),
             case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Load">>, [Id]) of
                 {ok, {_Id, Kind, Mixins, Attributes}} ->
-                    Entity = occi_entity:new(occi_node:id(Node), Kind, Mixins, cast_attributes(Attributes)),
+                    Entity = occi_entity:new(occi_node:id(Node), Kind, Mixins, parse_attributes(Attributes)),
                     {{ok, occi_node:data(Node, Entity)}, State};
                 {error, Err} ->
                     {{error, Err}, State}
@@ -367,10 +367,18 @@ init_service(#state{proxy=Backend}=State, Opts) ->
             {error, Err}
     end.
 
-cast_attributes(Attrs) ->
-    cast_attributes(Attrs, []).
 
-cast_attributes([], Acc) ->
+render_attribute(A) ->
+    Key = case occi_attribute:id(A) of
+              K when is_atom(K) -> atom_to_binary(K, utf8);
+              K -> K
+          end,
+    { Key, occi_attribute:value(A)}.
+
+parse_attributes(Attrs) ->
+    parse_attributes(Attrs, []).
+
+parse_attributes([], Acc) ->
     lists:reverse(Acc);
-cast_attributes([ {Key, #dbus_variant{value=Value} } | Tail ], Acc) ->
-    cast_attributes(Tail, [ {?attr_to_atom(Key), Value} | Acc]).
+parse_attributes([ {Key, #dbus_variant{value=Value} } | Tail ], Acc) ->
+    parse_attributes(Tail, [ {?attr_to_atom(Key), Value} | Acc]).
