@@ -273,7 +273,6 @@ list_bounded(#state{proxy=Backend}=State, Node, Opts) ->
     Filters = [],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_cid:to_binary(Cid), Filters]) of
         {ok, {ColId, Serial}} ->
-            ?debug("Set collection id: ~p", [ColId]),
             Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection, 
                              data=occi_collection:new(Cid)},
             next(State, Res, Opts);
@@ -284,7 +283,6 @@ list_bounded(#state{proxy=Backend}=State, Node, Opts) ->
 
 next(#state{proxy=Backend}=State, Node, _Opts) ->
     It = occi_node:objid(Node),
-    ?debug("Got collection id: ~p", [It]),
     Start = 0,
     NrItems = 0,
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Next">>, [It, Start, NrItems]) of
