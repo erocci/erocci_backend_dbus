@@ -118,4 +118,22 @@
 
   <!-- Resource template -->
   <occi:mixin scheme="http://schemas.ogf.org/occi/infrastructure#" term="resource_tpl" title="Resource template" />
+
+  <occi:mixin scheme="http://schemas.ogf.org/occi/infrastructure#" term="large"
+			  title="Large Instance - 4 cores and 8 GB RAM" >
+	<occi:depends scheme="http://schemas.ogf.org/occi/infrastructure#" term="resource_tpl" />
+
+	<occi:attribute name="occi.compute.architecture" type="xs:string" title="CPU Architecture"
+					immutable="true" />
+    <occi:attribute name="occi.compute.cores" type="xs:integer" title="CPU cores number"
+					immutable="true" />
+    <occi:attribute name="occi.compute.speed" type="xs:float" title="CPU speed (GHz)"
+					immutable="true" />
+    <occi:attribute name="occi.compute.memory" type="xs:float" title="System RAM (GB)"
+					immutable="true" />
+  </occi:mixin>
+
+  <occi:mixin scheme="http://occi.example.org/occi/infrastructure/os_tpl#" term="debian6" >
+	<occi:depends scheme="http://schemas.ogf.org/occi/infrastructure#" term="os_tpl" />
+  </occi:mixin>
 </occi:extension>
