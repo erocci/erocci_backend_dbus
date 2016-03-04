@@ -117,7 +117,7 @@ delete(#state{i_mixin=false}=State, #occi_node{type=capabilities}) ->
 delete(#state{proxy=Backend}=State, #occi_node{type=capabilities, data=Mixin}=Node) ->
     ?info("[~p] delete(~p)~n", [?MODULE, Node]),
     Id = occi_cid:to_binary(occi_mixin:id(Mixin)),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"DelMixin">>, [Id]) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND_MIXIN, <<"DelMixin">>, [Id]) of
         ok ->
             {ok, State};
         {ok, _Ret} ->
@@ -149,7 +149,7 @@ update(#state{proxy=Backend}=State, #occi_node{type=capabilities, data=Mixin}=No
     Id = occi_cid:to_binary(occi_mixin:id(Mixin)),
     Location = occi_uri:to_binary(occi_node:id(Node)),
     Owner = io_lib:format("~p", [occi_node:owner(Node)]),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"AddMixin">>, [Id, Location, Owner]) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND_MIXIN, <<"AddMixin">>, [Id, Location, Owner]) of
         ok ->
             {ok, State};
         {ok, _Ret} ->
