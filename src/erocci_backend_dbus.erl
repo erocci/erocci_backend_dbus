@@ -365,7 +365,18 @@ render_attribute(A) ->
               K when is_atom(K) -> atom_to_binary(K, utf8);
               K -> K
           end,
-    { Key, occi_attribute:value(A)}.
+    { Key, render_value(occi_attribute:value(A))}.
+
+
+render_value(V) when is_reference(V) ->
+    erlang:phash2(V);
+
+render_value(#uri{path=V}) ->
+    V;
+
+render_value(V) ->
+    V.
+
 
 parse_attributes(Attrs) ->
     parse_attributes(Attrs, []).
