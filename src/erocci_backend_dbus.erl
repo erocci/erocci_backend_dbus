@@ -174,7 +174,7 @@ update(#state{proxy=Backend}=State, #occi_node{type=occi_collection, data=Coll}=
 
 update(#state{proxy=Backend}=State, #occi_node{data=Entity}=Node) ->
     ?info("[~p] update(~p)~n", [?MODULE, Node]),
-    Id = occi_node:id(Node),
+    #uri{path=Id} = occi_node:id(Node),
     Attrs = [ render_attribute(A)
               || A <- 
                      case Entity of
@@ -182,10 +182,10 @@ update(#state{proxy=Backend}=State, #occi_node{data=Entity}=Node) ->
                          #occi_link{} -> occi_link:get_attributes(Entity)
                      end ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Update">>, [Id, Attrs]) of
-        ok ->
-            {ok, State};
         {ok, _Ret} ->
-            ?error("Backend invalid answer: ~p", [_Ret]),
+            {ok, State};
+        ok ->
+            ?error("Backend must return attributes~n", []),
             {{error, backend_error}, State};
         {error, Err} ->
             {{error, Err}, State}
