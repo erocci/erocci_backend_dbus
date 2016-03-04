@@ -304,7 +304,7 @@ action(#state{proxy=Backend}=State, #uri{}=Id, #occi_action{}=Action) ->
     ActionId = occi_cid:to_binary(occi_action:id(Action)),
     Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
               || A <- occi_action:get_attr_list(Action) ],
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Action">>, [EntityId, ActionId, Attrs]) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND_ACTION, <<"Action">>, [EntityId, ActionId, Attrs]) of
         ok ->
             {ok, State};
         {error, Err} ->
