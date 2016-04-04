@@ -16,3 +16,7 @@ priv/generate.es -o LANG Name
 
 * LANG: output language. Available: python
 * Name: Name of the backend.
+
+# TODO
+
+* Define return values for long requests: something like HTTP 202 Code
