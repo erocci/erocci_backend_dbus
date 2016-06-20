@@ -13,302 +13,228 @@
 %%% Created :  31 Jul 2014 by Jean Parpaillon <jean.parpaillon@free.fr>
 -module(erocci_backend_dbus).
 
--behaviour(occi_backend).
+-behaviour(erocci_backend).
 
--include_lib("erocci_core/include/occi.hrl").
--include_lib("erocci_core/include/occi_log.hrl").
+-include_lib("erocci_core/include/erocci.hrl").
+-include_lib("erocci_core/include/erocci_log.hrl").
 -include_lib("dbus/include/dbus_client.hrl").
 
 -include("occi_dbus.hrl").
 
 -define(IFACE_BACKEND, <<"org.ow2.erocci.backend.core">>).
--define(IFACE_BACKEND_MIXIN, <<"org.ow2.erocci.backend.mixin">>).
--define(IFACE_BACKEND_ACTION, <<"org.ow2.erocci.backend.action">>).
 
 %% occi_backend callbacks
 -export([init/1,
          terminate/1]).
--export([update/2,
-         save/2,
-         delete/2,
-         find/2,
-         load/3,
-         action/3]).
 
--record(state, {conn       :: dbus_connection(),
-                proxy      :: dbus_proxy(),
-                i_mixin    :: boolean(),
-                i_action   :: boolean()}).
+-export([models/1,
+	 get/2,
+	 create/4,
+	 create/5,
+	 update/3,
+	 link/4,
+	 action/4,
+	 delete/2,
+	 mixin/4,
+	 unmixin/3,
+	 collection/5]).
+
+-record(state, { conn       :: dbus_connection(),
+		 proxy      :: dbus_proxy() }).
 
 %%%===================================================================
 %%% occi_backend callbacks
 %%%===================================================================
-init(#occi_backend{opts=Props}) ->
+-spec init(Opts :: term()) ->
+		  {ok, Caps :: [erocci_backend:capability()], State :: term()} |
+		  {error, Reason :: term()}.
+init(Props) ->
     try parse_opts(Props) of
         {Service, Opts} -> connect_backend(Service, Opts)
     catch throw:Err -> {error, Err}
     end.
 
 
-terminate(#state{proxy=Backend}) ->
+-spec terminate(State :: term()) -> ok.
+terminate(#state{ proxy=Backend }) ->
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Terminate">>, []) of
         _ -> ok
     end.
 
 
-save(#state{proxy=Backend}=State, #occi_node{type=occi_resource, data=Res}=Node) ->
-    ?info("[~p] save(~p)~n", [?MODULE, Node]),
-    Id = occi_uri:to_binary(occi_node:id(Node)),
-    Kind = occi_cid:to_binary(occi_resource:get_cid(Res)),
-    Mixins = [ occi_cid:to_binary(Cid) || Cid <- sets:to_list(occi_resource:get_mixins(Res))],
-    Attrs = [ render_attribute(A)
-              || A <- occi_resource:get_attributes(Res), occi_attribute:value(A) =/= undefined ],
-    Owner = iolist_to_binary(io_lib:format("~p", [occi_node:owner(Node)])),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveResource">>, 
-                         [Id, Kind, Mixins, Attrs, Owner]) of
-        {ok, Id} -> 
-            {ok, State};
-        {ok, _Ret} ->
-            ?error("Backend invalid answer: ~p", [_Ret]),
-            {{error, backend_error}, State};
-        {error, Err} -> {{error, Err}, State}
-    end;
-
-save(#state{proxy=Backend}=State, #occi_node{type=occi_link, data=Link}=Node) ->
-    ?info("[~p] save(~p)~n", [?MODULE, Node]),
-    Id = occi_uri:to_binary(occi_node:id(Node)),
-    Kind = occi_cid:to_binary(occi_link:get_cid(Link)),
-    Mixins = [ occi_cid:to_binary(Cid) || Cid <- sets:to_list(occi_link:get_mixins(Link))],
-    Src = occi_uri:to_binary(occi_link:get_source(Link)),
-    Target = occi_uri:to_binary(occi_link:get_target(Link)),
-    Attrs = [ render_attribute(A)
-              || A <- occi_link:get_attributes(Link) ],
-    Owner = iolist_to_binary(io_lib:format("~p", [occi_node:owner(Node)])),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveLink">>, 
-                         [Id, Kind, Mixins, Src, Target, Attrs, Owner]) of
-        {ok, Id} -> 
-            {ok, State};
-        {ok, _Ret} ->
-            ?error("Backend invalid answer: ~p", [_Ret]),
-            {{error, backend_error}, State};
-        {error, Err} -> 
-            {{error, Err}, State}
-    end;
-
-save(#state{proxy=Backend}=State, #occi_node{type=occi_collection, data=Coll}=Node) ->
-    ?info("[~p] save(~p)~n", [?MODULE, Node]),
-    Id = occi_cid:to_binary(occi_collection:id(Coll)),
-    Entities = [ occi_uri:to_binary(E) || E <- occi_collection:entities(Coll) ],
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"SaveMixin">>, [Id, Entities]) of
-        ok -> 
-            {ok, State};
-        {ok, _Ret} ->
-            ?error("Backend invalid answer: ~p", [_Ret]),
-            {{error, backend_error}, State};
-        {error, Err} -> 
-            {{error, Err}, State}
+-spec models(State :: term()) -> 
+    {{ok, [occi_extension:t()]} | {error, erocci_backend:error()}, NewState :: term()}.
+models(#state{ proxy=Backend }=S) ->
+    ?info("[~s] models()", [?MODULE]),
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Models">>) of
+	{ok, Schemas} ->
+	    parse_models(Schemas, [], S);
+	{error, _}=Err ->
+	    {Err, S}
     end.
 
 
-delete(#state{i_mixin=false}=State, #occi_node{type=capabilities}) ->
-    % TODO: handle this in occi_store: do not query backend in case it does not support and return sthig like 403
-    {ok, State};
-
-delete(#state{proxy=Backend}=State, #occi_node{type=capabilities, data=Mixin}=Node) ->
-    ?info("[~p] delete(~p)~n", [?MODULE, Node]),
-    Id = occi_cid:to_binary(occi_mixin:id(Mixin)),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND_MIXIN, <<"DelMixin">>, [Id]) of
-        ok ->
-            {ok, State};
-        {ok, _Ret} ->
-            ?error("Backend invalid answer: ~p", [_Ret]),
-            {{error, backend_error}, State};
-        {error, Err} ->
-            {{error, Err}, State}
-    end;
-
-delete(#state{proxy=Backend}=State, #occi_node{id=Uri}=Node) ->
-    ?info("[~p] delete(~p)~n", [?MODULE, Node]),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Delete">>, [occi_uri:to_binary(Uri)]) of
-        ok ->
-            {ok, State};
-        {ok, _Ret} ->
-            ?error("Backend invalid answer: ~p", [_Ret]),
-            {{error, backend_error}, State};
-        {error, Err} ->
-            {{error, Err}, State}
+-spec get(Location :: binary(), State :: term()) ->
+		 {{ok, occi_collection:t() | occi_entity:t(), erocci_creds:user(), erocci_creds:group(), erocci_node:serial()} 
+		  | {error, erocci_backend:error()}, NewState :: term()}.
+get(Location, #state{ proxy=Backend }=S) ->
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Get">>, [Location]) of
+	{ok, [KindId, MixinIds, Attributes, Owner, Group, Serial]} ->
+	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
+	    {{ok, [Entity, Owner, Group, unmarshal_serial(Serial)]}, S};
+	{error, _}=Err ->
+	    {Err, S}
     end.
 
 
-update(#state{i_mixin=false}=State, #occi_node{type=capabilities}) ->
-    % TODO: handle this in occi_store: do not query backend in case it does not support and return sthig like 403
-    {ok, State};
-
-update(#state{proxy=Backend}=State, #occi_node{type=capabilities, data=Mixin}=Node) ->
-    ?info("[~p] update(~p)~n", [?MODULE, Node]),
-    Id = occi_cid:to_binary(occi_mixin:id(Mixin)),
-    Location = occi_uri:to_binary(occi_node:id(Node)),
-    Owner = io_lib:format("~p", [occi_node:owner(Node)]),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND_MIXIN, <<"AddMixin">>, [Id, Location, Owner]) of
-        ok ->
-            {ok, State};
-        {ok, _Ret} ->
-            ?error("Backend invalid answer: ~p", [_Ret]),
-            {{error, backend_error}, State};
-        {error, Err} ->
-            {{error, Err}, State}
-    end;    
-update(#state{proxy=Backend}=State, #occi_node{type=occi_collection, data=Coll}=Node) ->
-    ?info("[~p] update(~p)~n", [?MODULE, Node]),
-    Id = occi_cid:to_binary(occi_collection:id(Coll)),
-    Entities = [ occi_uri:to_binary(E) || E <- occi_collection:entities(Coll) ],
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"UpdateMixin">>, [Id, Entities]) of
-        ok ->
-            {ok, State};
-        {ok, _Ret} ->
-            ?error("Backend invalid answer: ~p", [_Ret]),
-            {{error, backend_error}, State};
-        {error, Err} ->
-            {{error, Err}, State}
-    end;    
-
-update(#state{proxy=Backend}=State, #occi_node{data=Entity}=Node) ->
-    ?info("[~p] update(~p)~n", [?MODULE, Node]),
-    #uri{path=Id} = occi_node:id(Node),
-    Attrs = [ render_attribute(A)
-              || A <- 
-                     case Entity of
-                         #occi_resource{} -> occi_resource:get_attributes(Entity);
-                         #occi_link{} -> occi_link:get_attributes(Entity)
-                     end ],
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Update">>, [Id, Attrs]) of
-        {ok, _Ret} ->
-            {ok, State};
-        ok ->
-            ?error("Backend must return attributes~n", []),
-            {{error, backend_error}, State};
-        {error, Err} ->
-            {{error, Err}, State}
+-spec create(Location :: binary(), Entity :: occi_entity:t(), 
+	     Owner :: erocci_creds:user(), Group :: erocci_creds:group(), State :: term()) ->
+		    {{ok, occi_entity:t(), erocci_node:serial()}
+		     | {error, erocci_backend:error()}, NewState :: term()}.
+create(Location, Entity, Owner, Group, #state{ proxy=Backend }=S) ->
+    ?info("[~p] create(~s)", [?MODULE, Location]),
+    {Scheme, Term} = occi_entity:kind(Entity),
+    Args = [ 
+	     Location,
+	     << Scheme/binary, Term/binary >>,
+	     lists:foldr(fun ({MixinScheme, MixinTerm}, Acc) ->
+				 [ << MixinScheme/binary, MixinTerm/binary >> | Acc ]
+			 end, [], occi_entity:mixins(Entity)),
+	     occi_entity:raw_attributes(Entity),
+	     Owner,
+	     Group
+	   ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Create1">>, Args) of
+	{ok, [KindId, MixinIds, Attributes, Serial]} ->
+	    Entity2 = unmarshal_entity(KindId, MixinIds, Attributes),
+	    {{ok, Entity2, unmarshal_serial(Serial)}, S};
+	{error, _}=Err ->
+	    {Err, S}
     end.
 
 
-find(#state{proxy=Backend}=State, Node) ->
-    ?info("[~p] find(~p)~n", [?MODULE, Node]),
-    case occi_node:type(Node) of
-        capabilities ->
-            find_user_mixins(State, Node);
-        _ ->
-            Id = occi_node:id(Node),
-            case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Find">>, [occi_uri:to_binary(Id)]) of
-                {ok, []} ->
-                    {{ok, []}, State};
-                {ok, [{?N_ENTITY, OpaqueId, Owner, Serial}]} ->
-                    Res = #occi_node{id=Id, objid=OpaqueId, owner=Owner, etag=Serial, type=occi_entity},
-                    {{ok, [Res]}, State};
-                {ok, [{?N_UNBOUNDED, _, _, _}]} ->
-                    find_unbounded(State, Node);
-                {ok, _Res} ->
-                    ?error("Backend invalid answer: ~p", [_Res]),
-                    {{error, backend_error}, State};
-                {error, Err} ->
-                    {{error, Err}, State}
-            end
+-spec create(Entity :: occi_entity:t(), Owner :: erocci_creds:user(), Group :: erocci_creds:group(), State :: term()) ->
+    {{ok, occi_uri:url(), occi_entity:t(), erocci_node:serial()} 
+     | {error, erocci_backend:error()}, NewState :: term()}.
+create(Entity, Owner, Group, #state{ proxy=Backend }=S) ->
+    {Scheme, Term} = occi_entity:kind(Entity),
+    ?info("[~p] create(~s~s)", [?MODULE, Scheme, Term]),
+    Args = [ 
+	     << Scheme/binary, Term/binary >>,
+	     lists:foldr(fun ({MixinScheme, MixinTerm}, Acc) ->
+				 [ << MixinScheme/binary, MixinTerm/binary >> | Acc ]
+			 end, [], occi_entity:mixins(Entity)),
+	     occi_entity:raw_attributes(Entity),
+	     Owner,
+	     Group
+	   ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Create2">>, Args) of
+	{ok, [Location, KindId, MixinIds, Attributes, Serial]} ->
+	    Entity2 = unmarshal_entity(KindId, MixinIds, Attributes),
+	    {{ok, occi_entity:location(Location, Entity2), unmarshal_serial(Serial)}, S};
+	{error, _}=Err ->
+	    {Err, S}
     end.
 
 
-find_user_mixins(#state{i_mixin=false}=State, Node) ->
-    {{ok, [Node#occi_node{data={[], [], []}}]}, State};
-
-find_user_mixins(#state{proxy=_Backend}=State, _Node) ->
-    {{ok, [#occi_node{data={[], [], []}}]}, State}.
-
-
-find_unbounded(#state{proxy=Backend}=State, Node) ->
-    Id = occi_node:id(Node),
-    Filters = [],
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_uri:to_binary(Id), Filters]) of
-        {ok, {ColId, Serial}} ->
-            ?debug("Set collection id: ~p", [ColId]),
-            Res = #occi_node{id=Id, objid=ColId, etag=Serial, type=occi_collection},
-            {{ok, [Res]}, State};
-        {error, Err} ->
-            {{error, Err}, State}
+-spec update(Location :: occi_uri:url(), Attributes :: maps:map(), State :: term()) ->
+		    {{ok, Entity2 :: occi_entity:t(), erocci_node:serial()}
+		     | {error, erocci_backend:error()}, NewState :: term()}.
+update(Location, Attributes, #state{ proxy=Backend }=S) ->
+    ?info("[~p] update(~s)", [?MODULE, Location]),
+    Args = [ Location, Attributes ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Update">>, Args) of
+	{ok, [KindId, MixinIds, Attributes, Serial]} ->
+	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
+	    {{ok, Entity, unmarshal_serial(Serial)}, S};
+	{error, _}=Err ->
+	    {Err, S}
     end.
 
 
-load(#state{proxy=Backend}=State, Node, Opts) ->
-    ?info("[~p] load(~p)~n", [?MODULE, occi_node:objid(Node)]),
-    case occi_node:type(Node) of
-        occi_collection ->
-            case occi_node:objid(Node) of
-                #occi_cid{} ->
-                    list_bounded(State, Node, Opts);
-                _ ->
-                    next(State, Node, Opts)
-            end;
-        capabilities ->
-            {{ok, [Node]}, State};
-        _ ->
-            Id = occi_node:objid(Node),
-            case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Load">>, [Id]) of
-                {ok, {_Id, Kind, Mixins, Attributes}} ->
-                    Entity = occi_entity:new(occi_node:id(Node), Kind, Mixins, parse_attributes(Attributes)),
-                    {{ok, occi_node:data(Node, Entity)}, State};
-                {error, Err} ->
-                    {{error, Err}, State}
-            end
+-define(link_types, fun (source) -> 0; (target) -> 1 end).
+-spec link(Location :: occi_uri:url(), 
+	   Type :: source | target, LinkId :: occi_link:id(), State :: term()) ->
+		  {ok | {error, erocci_backend:error()}, NewState :: term()}.
+link(Location, Type, LinkId, #state{ proxy=Backend }=S) ->
+    ?info("[~p] link(~s)", [?MODULE, Location]),
+    Args = [ Location, ?link_types(Type), LinkId ],
+    Ret = dbus_proxy:call(Backend, ?IFACE_BACKEND, Args),
+    {Ret, S}.
+
+
+-spec action(Location :: occi_uri:url(), ActionId :: occi_action:id(), Attributes :: maps:map(), State :: term()) ->
+		    {{ok, occi_entity:t(), erocci_node:serial()}
+		     | {error, error_backend:error()}, NewState :: term()}.
+action(Location, {ActionScheme, ActionTerm}, Attributes, #state{ proxy=Backend }=S) ->
+    ?info("[~p] action(~s, ~s~s)", [?MODULE, Location, ActionScheme, ActionTerm]),
+    Args = [ Location, << ActionScheme/binary, ActionTerm/binary >>, Attributes ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
+	{ok, [KindId, MixinIds, Attributes, Serial]} ->
+	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
+	    {{ok, Entity, unmarshal_serial(Serial)}, S};
+	{error, _}=Err ->
+	    Err
     end.
 
 
-list_bounded(#state{proxy=Backend}=State, Node, Opts) ->
-    Cid = occi_node:objid(Node),
-    Filters = [],
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"List">>, [occi_cid:to_binary(Cid), Filters]) of
-        {ok, {ColId, Serial}} ->
-            Res = #occi_node{id=occi_node:id(Node), objid=ColId, etag=Serial, type=occi_collection, 
-                             data=occi_collection:new(Cid)},
-            next(State, Res, Opts);
-        {error, Err} ->
-            {{error, Err}, State}
-    end.    
+-spec delete(Location :: binary(), State :: term()) ->
+		    {ok | {error, erocci_backend:error()}, NewState :: term()}.
+delete(Location, #state{ proxy=Backend }=S) ->
+    ?info("[~p] delete(~s)", [?MODULE, Location]),
+    Ret = dbus_proxy:call(Backend, ?IFACE_BACKEND, [Location]),
+    {Ret, S}.
 
 
-next(#state{proxy=Backend}=State, Node, _Opts) ->
-    It = occi_node:objid(Node),
-    Start = 0,
-    NrItems = 0,
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Next">>, [It, Start, NrItems]) of
-        {ok, Items} ->
-            Entities = [ occi_uri:parse(Item) || {Item, _Owner} <- Items ],
-            Col = case Node#occi_node.data of
-                      undefined ->
-                          occi_collection:new(occi_node:id(Node), Entities);
-                      #occi_collection{}=C ->
-                          occi_collection:add_entities(C, Entities)
-                  end,
-            Res = Node#occi_node{data=Col},
-            {{ok, Res}, State};
-        {error, Err} ->
-            {{error, Err}, State}
+-spec mixin(Location :: occi_uri:url(), MixinId :: occi_mixin:t(), Attributes :: maps:map(), State :: term()) ->
+		   {{ok, occi_entity:t(), erocci_node:serial()}
+		    | {error, erocci_backend:error()}, NewState :: term()}.
+mixin(Location, {Scheme, Term}, Attributes, #state{ proxy=Backend }=S) ->
+    ?info("[~p] mixin(~s, ~s~s)", [?MODULE, Location, Scheme, Term]),
+    Args = [ Location, << Scheme/binary, Term/binary >>, Attributes ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
+	{ok, [KindId, MixinIds, Attributes, Serial]} ->
+	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
+	    {{ok, Entity, unmarshal_serial(Serial)}, S};
+	{error, _}=Err ->
+	    {Err, S}
     end.
 
 
-action(#state{i_action=false}=State, #uri{}, #occi_action{}) ->
-    % TODO: handle this in occi_store: do not query backend in case it does not 
-    % support and return sthig like 403
-    {ok, State};
+-spec unmixin(Location :: occi_uri:url(), MixinId :: occi_mixin:t(), State :: term()) ->
+		     {{ok, occi_entity:t(), erocci_node:serial()}
+		      | {error, erocci_backend:error()}, NewState :: term()}.
+unmixin(Location, {Scheme, Term}, #state{ proxy=Backend }=S) ->
+    ?info("[~p] unmixin(~s. ~s~s)", [?MODULE, Scheme, Term]),
+    Args = [ Location, << Scheme/binary, Term/binary >> ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
+	{ok, [KindId, MixinIds, Attributes, Serial]} ->
+	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
+	    {{ok, Entity, unmarshal_serial(Serial)}, S};
+	{error, _}=Err ->
+	    Err
+    end.
 
-action(#state{proxy=Backend}=State, #uri{}=Id, #occi_action{}=Action) ->
-    ?info("[~p] action(~p, ~p)~n", [?MODULE, Id, Action]),
-    EntityId = occi_uri:to_binary(Id), 
-    ActionId = occi_cid:to_binary(occi_action:id(Action)),
-    Attrs = [ { occi_attribute:get_id(A), occi_attribute:get_value(A)} 
-              || A <- occi_action:get_attr_list(Action) ],
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND_ACTION, <<"Action">>, [EntityId, ActionId, Attrs]) of
-        ok ->
-            {ok, State};
-        {error, Err} ->
-            {{error, Err}, State}
+
+-spec collection(Id :: occi_category:id() | binary(),
+		 Filter :: erocci_filter:t(),
+		 Start :: integer(), Number :: integer() | undefined,
+		 State :: term()) ->
+			{{ok, [{occi_entity:t(), erocci_creds:user(), erocci_creds:group()}], erocci_node:serial()}
+			 | {error, erocci_backend:error()}, NewState :: term()}.
+collection({Scheme, Term}, Filter, Start, Number, S) ->
+    collection(<< Scheme/binary, Term/binary >>, Filter, Start, Number, S);
+
+collection(Id, Filter, Start, Number, #state{ proxy=Backend }=S) ->
+    ?info("[~p] collection(~s)", [?MODULE, Id]),
+    Args = [ Id, marshal_filter(Filter, []), Start, Number ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
+	{ok, Data} ->
+	    Entities = [ { unmarshal_entity(KindId, MixinIds, Attributes), Owner, Group, unmarshal_serial(Serial) } 
+			 || [KindId, MixinIds, Attributes, Owner, Group, Serial] <- Data ],
+	    {{ok, Entities}, S};
+	{error, _}=Err ->
+	    Err
     end.
 
 %%%===================================================================
@@ -319,10 +245,7 @@ parse_opts(Props) ->
               undefined -> throw({error, {missing_opt, service}});
               Str -> list_to_binary(Str)
           end,
-    Opts = case proplists:get_value(opts, Props) of
-               undefined -> [];
-               V -> V
-           end,
+    Opts = proplists:get_value(opts, Props, []),
     {Srv, Opts}.
 
 
@@ -340,15 +263,11 @@ connect_backend(Service, Opts) ->
     end.
 
 
-init_service(#state{proxy=Backend}=State, Opts) ->
+init_service(#state{ proxy=Backend }=State, Opts) ->
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Init">>, [Opts]) of
         ok ->
             ?debug("Initialization ok...", []),
-            Schema = dbus_properties_proxy:get(Backend, ?IFACE_BACKEND, 'schema'),
-            {ok, [{schemas, [Schema]}], 
-             State#state{
-               i_mixin=dbus_proxy:has_interface(Backend, ?IFACE_BACKEND_MIXIN),
-               i_action=dbus_proxy:has_interface(Backend, ?IFACE_BACKEND_ACTION)}};
+            {ok, [], State};
         {ok, Msg} ->
             ?error("Invalid Init: ~p", [Msg]),
             {error, invalid_backend};
@@ -360,28 +279,39 @@ init_service(#state{proxy=Backend}=State, Opts) ->
     end.
 
 
-render_attribute(A) ->
-    Key = case occi_attribute:id(A) of
-              K when is_atom(K) -> atom_to_binary(K, utf8);
-              K -> K
-          end,
-    { Key, render_value(occi_attribute:value(A))}.
+-define(schema_type_xml, 0).
+parse_models([], Acc, S) ->
+    {{ok, lists:reverse(Acc)}, S};
+
+parse_models([ {?schema_type_xml, Bin} | Schemas ], Acc, S) ->
+    Ext = occi_rendering:parse(xml, Bin, occi_extension),
+    parse_models(Schemas, [ Ext | Acc ], S);
+
+parse_models([ {Type, _Bin} | _ ], _, S) ->
+    {{error, {parse_error, {unsupported_format, Type}}}, S}.
 
 
-render_value(V) when is_reference(V) ->
-    erlang:phash2(V);
-
-render_value(#uri{path=V}) ->
-    V;
-
-render_value(V) ->
-    V.
+unmarshal_entity(KindId, MixinIds, Attributes) ->
+    E0 = occi_entity:new(KindId),
+    E1 = lists:foldl(fun (MixinId, Acc) ->
+			     occi_entity:add_mixin(MixinId, Acc)
+		     end, E0, MixinIds),
+    occi_entity:set(Attributes, server, E1).
 
 
-parse_attributes(Attrs) ->
-    parse_attributes(Attrs, []).
-
-parse_attributes([], Acc) ->
+-define(filter_ops, fun (eq) -> 0; (like) -> 1 end).
+marshal_filter([], Acc) ->
     lists:reverse(Acc);
-parse_attributes([ {Key, #dbus_variant{value=Value} } | Tail ], Acc) ->
-    parse_attributes(Tail, [ {?attr_to_atom(Key), Value} | Acc]).
+
+marshal_filter([ {Op, '_', Value} | Filter ], Acc) ->
+    marshal_filter(Filter, [ {?filter_ops(Op), <<>>, Value} | Acc ]);
+
+marshal_filter([ {Op, Key, Value} | Filter ], Acc) ->
+    marshal_filter(Filter, [ {?filter_ops(Op), Key, Value} | Acc ]).
+
+
+unmarshal_serial(<<>>) ->
+    undefined;
+
+unmarshal_serial(Bin) ->
+    Bin.

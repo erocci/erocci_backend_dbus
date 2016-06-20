@@ -19,6 +19,11 @@
   <interface name="org.ow2.erocci.backend.core">
     <xs:annotation>
       <xs:documentation>Core interface for erocci backend</xs:documentation>
+      <xs:documentation>
+	Exceptions:
+	'org.ow2.erocci.NotFound'
+	'org.ow2.erocci.Conflict'
+      </xs:documentation>
     </xs:annotation>
     
     <method name="Init" >
@@ -64,6 +69,7 @@
 	  * kind (string): kind id
 	  * mixins (string array): mixin ids
 	  * attributes (string/variant array): entity attributes
+	  * links (as): (possible empty) link location list
 	  * owner (string): entity owner
 	  * group (string): entity group
 	  * serial (string): entity serial
@@ -183,23 +189,11 @@
 	  * type (byte): 0: source, 1: target
 	  * link (string): link location
         </xs:documentation>
-        <xs:documentation>
-          Out:
-          * kind (string): kind id
-	  * mixins (string array): mixin ids
-	  * attributes (string/variant array): entity attributes
-	  * serial (string): entity serial
-        </xs:documentation>
       </xs:annotation>
 
       <arg name="location" type="s" direction="in" />
       <arg name="type" type="y" direction="in" />
       <arg name="link" type="s" direction="in" />
-      
-      <arg name="kind" type="s" direction="out" />
-      <arg name="mixins" type="as" direction="out" />
-      <arg name="attributes" type="a{sv}" direction="out" />
-      <arg name="serial" type="s" direction="out" />
     </method>
 
     <method name="Action" >
@@ -318,6 +312,8 @@
           * kind (string): kind id
 	  * mixins (string array): mixin ids
 	  * attributes (string/variant array): entity attributes
+	  * owner (string): entity owner
+	  * group (string): entity group owner
 	  * serial (string): entity serial
         </xs:documentation>
       </xs:annotation>
@@ -327,7 +323,7 @@
       <arg name="start" type="u" direction="in" />
       <arg name="number" type="u" direction="in" />
 
-      <arg name="entities" type="a(sasa{sv}s)" direction="out" />
+      <arg name="entities" type="a(sasa{sv}sss)" direction="out" />
     </method>
   </interface>
 </node>
