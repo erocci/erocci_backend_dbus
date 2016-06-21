@@ -95,8 +95,8 @@
 	  * kind (string): kind id
 	  * mixins (string array): mixins ids
 	  * attributes (string/variant array): entity attributes
-	  * owner (string): entity owner
-	  * group (string): entity group
+	  * owner (string): entity owner (empty=anonymous)
+	  * group (string): entity group (empty=anonymous)
         </xs:documentation>
         <xs:documentation>
           Out:
@@ -128,8 +128,8 @@
 	  * kind (string): kind id
 	  * mixins (string array): mixins ids
 	  * attributes (string/variant array): entity attributes
-	  * owner (string): entity owner
-	  * group (string): entity group
+	  * owner (string): entity owner (empty=anonymous)
+	  * group (string): entity group (empty=anonymous)
         </xs:documentation>
         <xs:documentation>
           Out:
