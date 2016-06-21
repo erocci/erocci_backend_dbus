@@ -82,7 +82,7 @@ models(#state{ proxy=Backend }=S) ->
 		  | {error, erocci_backend:error()}, NewState :: term()}.
 get(Location, #state{ proxy=Backend }=S) ->
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Get">>, [Location]) of
-	{ok, [KindId, MixinIds, Attributes, Owner, Group, Serial]} ->
+	{ok, {KindId, MixinIds, Attributes, Owner, Group, Serial}} ->
 	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
 	    {{ok, [Entity, unmarshal_user(Owner), unmarshal_user(Group), unmarshal_serial(Serial)]}, S};
 	{error, Err} ->
@@ -108,9 +108,11 @@ create(Location, Entity, Owner, Group, #state{ proxy=Backend }=S) ->
 	     marshal_user(Group)
 	   ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Create1">>, Args) of
-	{ok, [KindId, MixinIds, Attributes, Serial]} ->
-	    Entity2 = unmarshal_entity(KindId, MixinIds, Attributes),
-	    {{ok, Entity2, unmarshal_serial(Serial)}, S};
+	{ok, {KindId, MixinIds, Attributes, Serial}} ->
+	    dbus_ok(KindId, MixinIds, Attributes, 
+		    fun (Entity2) ->
+			    {ok, Entity2, unmarshal_serial(Serial)}
+		    end, S);
 	{error, Err} ->
 	    dbus_errors(Err, S)
     end.
@@ -132,9 +134,11 @@ create(Entity, Owner, Group, #state{ proxy=Backend }=S) ->
 	     marshal_user(Group)
 	   ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Create2">>, Args) of
-	{ok, [Location, KindId, MixinIds, Attributes, Serial]} ->
-	    Entity2 = unmarshal_entity(KindId, MixinIds, Attributes),
-	    {{ok, occi_entity:location(Location, Entity2), unmarshal_serial(Serial)}, S};
+	{ok, {Location, KindId, MixinIds, Attributes, Serial}} ->
+	    dbus_ok(KindId, MixinIds, Attributes,
+		    fun (Entity2) ->
+			    {ok, Location, Entity2, unmarshal_serial(Serial)}
+		    end, S);
 	{error, Err} ->
 	    dbus_errors(Err, S)
     end.
@@ -147,9 +151,11 @@ update(Location, Attributes, #state{ proxy=Backend }=S) ->
     ?info("[~p] update(~s)", [?MODULE, Location]),
     Args = [ Location, Attributes ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Update">>, Args) of
-	{ok, [KindId, MixinIds, Attributes, Serial]} ->
-	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
-	    {{ok, Entity, unmarshal_serial(Serial)}, S};
+	{ok, {KindId, MixinIds, Attributes, Serial}} ->
+	    dbus_ok(KindId, MixinIds, Attributes, 
+		    fun (Entity) ->
+			    {ok, Entity, unmarshal_serial(Serial)}
+		    end, S);
 	{error, Err} ->
 	    dbus_errors(Err, S)
     end.
@@ -177,9 +183,11 @@ action(Location, {ActionScheme, ActionTerm}, Attributes, #state{ proxy=Backend }
     ?info("[~p] action(~s, ~s~s)", [?MODULE, Location, ActionScheme, ActionTerm]),
     Args = [ Location, << ActionScheme/binary, ActionTerm/binary >>, Attributes ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
-	{ok, [KindId, MixinIds, Attributes, Serial]} ->
-	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
-	    {{ok, Entity, unmarshal_serial(Serial)}, S};
+	{ok, {KindId, MixinIds, Attributes, Serial}} ->
+	    dbus_ok(KindId, MixinIds, Attributes,
+		    fun (Entity) ->
+			    {ok, Entity, unmarshal_serial(Serial)}
+		    end, S);
 	{error, Err} ->
 	    dbus_errors(Err, S)
     end.
@@ -204,9 +212,11 @@ mixin(Location, {Scheme, Term}, Attributes, #state{ proxy=Backend }=S) ->
     ?info("[~p] mixin(~s, ~s~s)", [?MODULE, Location, Scheme, Term]),
     Args = [ Location, << Scheme/binary, Term/binary >>, Attributes ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
-	{ok, [KindId, MixinIds, Attributes, Serial]} ->
-	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
-	    {{ok, Entity, unmarshal_serial(Serial)}, S};
+	{ok, {KindId, MixinIds, Attributes, Serial}} ->
+	    dbus_ok(KindId, MixinIds, Attributes,
+		    fun (Entity) ->
+			    {ok, Entity, unmarshal_serial(Serial)}
+		    end, S);
 	{error, Err} ->
 	    dbus_errors(Err, S)
     end.
@@ -219,9 +229,11 @@ unmixin(Location, {Scheme, Term}, #state{ proxy=Backend }=S) ->
     ?info("[~p] unmixin(~s. ~s~s)", [?MODULE, Scheme, Term]),
     Args = [ Location, << Scheme/binary, Term/binary >> ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
-	{ok, [KindId, MixinIds, Attributes, Serial]} ->
-	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
-	    {{ok, Entity, unmarshal_serial(Serial)}, S};
+	{ok, {KindId, MixinIds, Attributes, Serial}} ->
+	    dbus_ok(KindId, MixinIds, Attributes,
+		    fun (Entity) ->
+			    {ok, Entity, unmarshal_serial(Serial)}
+		    end, S);
 	{error, Err} ->
 	    dbus_errors(Err, S)
     end.
@@ -241,12 +253,12 @@ collection(Id, Filter, Start, Number, #state{ proxy=Backend }=S) ->
     Args = [ Id, marshal_filter(Filter, []), Start, Number ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
 	{ok, Data} ->
-	    Entities = [ { unmarshal_entity(KindId, MixinIds, Attributes), 
-			   unmarshal_user(Owner), 
-			   unmarshal_user(Group), 
-			   unmarshal_serial(Serial) } 
-			 || [KindId, MixinIds, Attributes, Owner, Group, Serial] <- Data ],
-	    {{ok, Entities}, S};
+	    case unmarshal_entities(Data, []) of
+		{ok, Entities} ->
+		    {{ok, Entities}, S};
+		{error, _}=Err ->
+		    Err
+	    end;
 	{error, Err} ->
 	    dbus_errors(Err, S)
     end.
@@ -307,6 +319,19 @@ parse_models([ {Type, _Bin} | _ ], _, S) ->
     {{error, {parse_error, {unsupported_format, Type}}}, S}.
 
 
+unmarshal_entities([], Acc) ->
+    lists:reverse(Acc);
+
+unmarshal_entities([ {KindId, MixinIds, Attributes, Owner, Group, Serial} | Tail ], Acc) ->
+    try unmarshal_entity(KindId, MixinIds, Attributes) of
+	Entity ->
+	    Entry = { Entity, unmarshal_user(Owner), unmarshal_user(Group), unmarshal_serial(Serial) },
+	    unmarshal_entities(Tail, [ Entry | Acc ])
+    catch throw:Err ->
+	    {error, Err}
+    end.
+    
+
 unmarshal_entity(KindId, MixinIds, Attributes) ->
     E0 = occi_entity:new(KindId),
     E1 = lists:foldl(fun (MixinId, Acc) ->
@@ -357,3 +382,11 @@ dbus_errors({Name, Msg}, S) ->
 dbus_errors(Else, S) ->
     {{error, Else}, S}.
 
+
+dbus_ok(KindId, MixinIds, Attributes, Fun, S) ->
+    try unmarshal_entity(KindId, MixinIds, Attributes) of
+	Entity ->
+	    {Fun(Entity), S}
+    catch throw:Err ->
+	    {{error, Err}, S}
+    end.
