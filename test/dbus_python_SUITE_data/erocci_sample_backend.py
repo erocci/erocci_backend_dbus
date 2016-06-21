@@ -51,6 +51,7 @@ class SampleService(dbus.service.Object):
 
     def __add_collections(self, location, categories):
         for category in categories:
+            category = str(category)
             if not category in self.__collections:
                 self.__collections[category] = set()
             self.__collections[category].add(location)
@@ -60,6 +61,7 @@ class SampleService(dbus.service.Object):
     def __rm_collections(self, location, categories=[]):
         for category in categories or self.__collections.keys():
             if category in self.__collections:
+                category = str(category)
                 if location in self.__collections[category]:
                     del self.__collections[category][location]
         return
@@ -94,6 +96,7 @@ class SampleService(dbus.service.Object):
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='sasa{sv}sss')
     def Get(self, location):
+        location = str(location)
         print "[INFO] Get(%s)" % (location)
         if location in self.__entities:
             (kind, mixins, attributes, owner, group) = self.__entities[location]
@@ -111,6 +114,7 @@ class SampleService(dbus.service.Object):
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ssasa{sv}ss', out_signature='sasa{sv}s')
     def Create1(self, location, kind, mixins, attributes, owner, group):
+        location = str(location)
         print "[INFO] Create1(%s)" % (location)
         if location in self.__entities[location]:
             (e_kind, e_mixins, e_attributes, e_owner, e_group) = self.__entities[location]
@@ -131,7 +135,7 @@ class SampleService(dbus.service.Object):
         print "[INFO] Create2(%s)" % (kind)
         location = ''
         if 'occi.core.id' in attributes:
-            location = attributes['occi.core.id']
+            location = str(attributes['occi.core.id'])
         else:
             location = '%s' % uuid.uuid4()
         self.__entities[location] = (kind, set(mixins), attributes, owner, group)
@@ -141,11 +145,12 @@ class SampleService(dbus.service.Object):
     
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa{sv}', out_signature='sasa{sv}s')
     def Update(self, location, attributes):
+        location = str(location)
         print "[INFO] Update(%s)" % (location)
         if location in self.__entities:
             (kind, mixins, actual, owner, group) = self.__entities[location]
             for (k, v) in attributes:
-                actual[k] = v
+                actual[str(k)] = v
             self.__entities[location] = (kind, mixins, actual, owner, group)
             return (kind, mixins, actual, '')
         else:
@@ -154,6 +159,8 @@ class SampleService(dbus.service.Object):
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sys', out_signature='')
     def Link(self, location, direction, link):
+        location = str(location)
+        link = str(link)
         print "[INFO] Link(%s, %s, %s)" % (location, direction, link)
         if not link in self.__links:
             self.__links[link] = set()
@@ -163,6 +170,7 @@ class SampleService(dbus.service.Object):
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ssa{sv}', out_signature='sasa{sv}s')
     def Action(self, location, action, attributes):
+        location = str(location)
         print "[INFO] Action(%s, %s)" % (location, action)
         if location in self.__entities:
             (kind, mixins, attributes, owner, group) = self.__entities[location]
@@ -173,6 +181,7 @@ class SampleService(dbus.service.Object):
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='')
     def Delete(self, location):
+        location = str(location)
         print "[INFO] Delete(%s)" % (location)
         if location in self.__entities:
             (kind, mixins, attributes, owner, group) = self.__entities[location]
@@ -189,12 +198,14 @@ class SampleService(dbus.service.Object):
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ssa{sv}', out_signature='sasa{sv}s')
     def Mixin(self, location, mixin, attributes):
+        location = str(location)
+        mixin = str(mixin)
         print "[INFO] Mixin(%s, %s)" % (location, mixin)
         if location in self.__entities:
             (kind, mixins, actual, owner, group) = self.__entities[location]
             self.__add_collections(location, [mixin])
             for (k, v) in attributes:
-                actual[k] = v
+                actual[str(k)] = v
             mixins.add(mixin)
             self.__entities[location] = (kind, mixins, actual, owner, group)
             return (kind, mixins, actual, '')
@@ -204,6 +215,8 @@ class SampleService(dbus.service.Object):
     
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ss', out_signature='sasa{sv}s')
     def Unmixin(self, location, mixin):
+        location = str(location)
+        mixin = str(mixin)
         print "[INFO] Unmixin(%s, %s)" % (location, mixin)
         if location in self.__entities:
             (kind, mixins, actual, owner, group) = self.__entities[location]
@@ -217,6 +230,7 @@ class SampleService(dbus.service.Object):
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa(ysv)uu', out_signature='a(sasa{sv}sss)')
     def Collection(self, category, filter, start, number):
+        category = str(category)
         # Do not handle unbounded collection, nor filters (just for demo)
         print "[INFO] Collection(%s)" % (category)
         if category in self.__collections:
