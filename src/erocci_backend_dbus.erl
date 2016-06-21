@@ -42,6 +42,9 @@
 -record(state, { conn       :: dbus_connection(),
 		 proxy      :: dbus_proxy() }).
 
+-define(dbus_exception_notfound, <<"org.ow2.erocci.backend.NotFound">>).
+-define(dbus_exception_conflict, <<"org.ow2.erocci.backend.Conflict">>).
+
 %%%===================================================================
 %%% occi_backend callbacks
 %%%===================================================================
@@ -66,7 +69,7 @@ terminate(#state{ proxy=Backend }) ->
     {{ok, [occi_extension:t()]} | {error, erocci_backend:error()}, NewState :: term()}.
 models(#state{ proxy=Backend }=S) ->
     ?info("[~s] models()", [?MODULE]),
-    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Models">>) of
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Models">>, []) of
 	{ok, Schemas} ->
 	    parse_models(Schemas, [], S);
 	{error, _}=Err ->
@@ -81,9 +84,9 @@ get(Location, #state{ proxy=Backend }=S) ->
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Get">>, [Location]) of
 	{ok, [KindId, MixinIds, Attributes, Owner, Group, Serial]} ->
 	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
-	    {{ok, [Entity, Owner, Group, unmarshal_serial(Serial)]}, S};
-	{error, _}=Err ->
-	    {Err, S}
+	    {{ok, [Entity, unmarshal_user(Owner), unmarshal_user(Group), unmarshal_serial(Serial)]}, S};
+	{error, Err} ->
+	    dbus_errors(Err, S)
     end.
 
 
@@ -101,15 +104,15 @@ create(Location, Entity, Owner, Group, #state{ proxy=Backend }=S) ->
 				 [ << MixinScheme/binary, MixinTerm/binary >> | Acc ]
 			 end, [], occi_entity:mixins(Entity)),
 	     occi_entity:raw_attributes(Entity),
-	     Owner,
-	     Group
+	     marshal_user(Owner),
+	     marshal_user(Group)
 	   ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Create1">>, Args) of
 	{ok, [KindId, MixinIds, Attributes, Serial]} ->
 	    Entity2 = unmarshal_entity(KindId, MixinIds, Attributes),
 	    {{ok, Entity2, unmarshal_serial(Serial)}, S};
-	{error, _}=Err ->
-	    {Err, S}
+	{error, Err} ->
+	    dbus_errors(Err, S)
     end.
 
 
@@ -125,15 +128,15 @@ create(Entity, Owner, Group, #state{ proxy=Backend }=S) ->
 				 [ << MixinScheme/binary, MixinTerm/binary >> | Acc ]
 			 end, [], occi_entity:mixins(Entity)),
 	     occi_entity:raw_attributes(Entity),
-	     Owner,
-	     Group
+	     marshal_user(Owner),
+	     marshal_user(Group)
 	   ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Create2">>, Args) of
 	{ok, [Location, KindId, MixinIds, Attributes, Serial]} ->
 	    Entity2 = unmarshal_entity(KindId, MixinIds, Attributes),
 	    {{ok, occi_entity:location(Location, Entity2), unmarshal_serial(Serial)}, S};
-	{error, _}=Err ->
-	    {Err, S}
+	{error, Err} ->
+	    dbus_errors(Err, S)
     end.
 
 
@@ -147,8 +150,8 @@ update(Location, Attributes, #state{ proxy=Backend }=S) ->
 	{ok, [KindId, MixinIds, Attributes, Serial]} ->
 	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
 	    {{ok, Entity, unmarshal_serial(Serial)}, S};
-	{error, _}=Err ->
-	    {Err, S}
+	{error, Err} ->
+	    dbus_errors(Err, S)
     end.
 
 
@@ -159,8 +162,12 @@ update(Location, Attributes, #state{ proxy=Backend }=S) ->
 link(Location, Type, LinkId, #state{ proxy=Backend }=S) ->
     ?info("[~p] link(~s)", [?MODULE, Location]),
     Args = [ Location, ?link_types(Type), LinkId ],
-    Ret = dbus_proxy:call(Backend, ?IFACE_BACKEND, Args),
-    {Ret, S}.
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
+	ok ->
+	    {ok, S};
+	{error, Err} ->
+	    dbus_errors(Err, S)
+    end.
 
 
 -spec action(Location :: occi_uri:url(), ActionId :: occi_action:id(), Attributes :: maps:map(), State :: term()) ->
@@ -173,8 +180,8 @@ action(Location, {ActionScheme, ActionTerm}, Attributes, #state{ proxy=Backend }
 	{ok, [KindId, MixinIds, Attributes, Serial]} ->
 	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
 	    {{ok, Entity, unmarshal_serial(Serial)}, S};
-	{error, _}=Err ->
-	    Err
+	{error, Err} ->
+	    dbus_errors(Err, S)
     end.
 
 
@@ -182,8 +189,12 @@ action(Location, {ActionScheme, ActionTerm}, Attributes, #state{ proxy=Backend }
 		    {ok | {error, erocci_backend:error()}, NewState :: term()}.
 delete(Location, #state{ proxy=Backend }=S) ->
     ?info("[~p] delete(~s)", [?MODULE, Location]),
-    Ret = dbus_proxy:call(Backend, ?IFACE_BACKEND, [Location]),
-    {Ret, S}.
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, [Location]) of
+	ok ->
+	    {ok, S};
+	{error, Err} ->
+	    dbus_errors(Err, S)
+    end.
 
 
 -spec mixin(Location :: occi_uri:url(), MixinId :: occi_mixin:t(), Attributes :: maps:map(), State :: term()) ->
@@ -196,8 +207,8 @@ mixin(Location, {Scheme, Term}, Attributes, #state{ proxy=Backend }=S) ->
 	{ok, [KindId, MixinIds, Attributes, Serial]} ->
 	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
 	    {{ok, Entity, unmarshal_serial(Serial)}, S};
-	{error, _}=Err ->
-	    {Err, S}
+	{error, Err} ->
+	    dbus_errors(Err, S)
     end.
 
 
@@ -211,8 +222,8 @@ unmixin(Location, {Scheme, Term}, #state{ proxy=Backend }=S) ->
 	{ok, [KindId, MixinIds, Attributes, Serial]} ->
 	    Entity = unmarshal_entity(KindId, MixinIds, Attributes),
 	    {{ok, Entity, unmarshal_serial(Serial)}, S};
-	{error, _}=Err ->
-	    Err
+	{error, Err} ->
+	    dbus_errors(Err, S)
     end.
 
 
@@ -230,11 +241,14 @@ collection(Id, Filter, Start, Number, #state{ proxy=Backend }=S) ->
     Args = [ Id, marshal_filter(Filter, []), Start, Number ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, Args) of
 	{ok, Data} ->
-	    Entities = [ { unmarshal_entity(KindId, MixinIds, Attributes), Owner, Group, unmarshal_serial(Serial) } 
+	    Entities = [ { unmarshal_entity(KindId, MixinIds, Attributes), 
+			   unmarshal_user(Owner), 
+			   unmarshal_user(Group), 
+			   unmarshal_serial(Serial) } 
 			 || [KindId, MixinIds, Attributes, Owner, Group, Serial] <- Data ],
 	    {{ok, Entities}, S};
-	{error, _}=Err ->
-	    Err
+	{error, Err} ->
+	    dbus_errors(Err, S)
     end.
 
 %%%===================================================================
@@ -243,7 +257,9 @@ collection(Id, Filter, Start, Number, #state{ proxy=Backend }=S) ->
 parse_opts(Props) ->
     Srv = case proplists:get_value(service, Props) of
               undefined -> throw({error, {missing_opt, service}});
-              Str -> list_to_binary(Str)
+	      Str when is_atom(Str) -> atom_to_binary(Str, utf8);
+	      Str when is_binary(Str) -> Str;
+              Str when is_list(Str) -> list_to_binary(Str)
           end,
     Opts = proplists:get_value(opts, Props, []),
     {Srv, Opts}.
@@ -315,3 +331,29 @@ unmarshal_serial(<<>>) ->
 
 unmarshal_serial(Bin) ->
     Bin.
+
+
+marshal_user(anonymous) -> <<>>;
+
+marshal_user(User) when is_binary(User) -> User.
+
+
+unmarshal_user(<<>>) -> anonymous;
+
+unmarshal_user(User) when is_binary(User) -> User.
+
+
+dbus_errors({?dbus_exception_notfound, _Msg}, S) ->
+    {{error, not_found}, S};
+
+dbus_errors({?dbus_exception_conflict, _Msg}, S) ->
+    {{error, conflict}, S};
+
+dbus_errors({Name, Msg}, S) ->
+    ?debug("Unknown exception from backend: ~p", [Name]),
+    ?debug("Exception: ~p", [Msg]),
+    {{error, Name}, S};
+
+dbus_errors(Else, S) ->
+    {{error, Else}, S}.
+
