@@ -31,6 +31,7 @@ init_per_suite(Config) ->
                         [{allow, '_', '_', '_'}]),
 
     Config2 = start_dbus(Config),
+    timer:sleep(1000),
     Config3 = start_service(Config2),
     timer:sleep(1000),
     
