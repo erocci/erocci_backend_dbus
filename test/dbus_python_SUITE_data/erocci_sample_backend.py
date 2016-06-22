@@ -85,9 +85,11 @@ class SampleService(dbus.service.Object):
 
     def __get_links(self, location):
         links = []
-        for (link, endpoints) in self.__links.items():
-            if location in endpoints:
-                links.append(link)
+        for (link, entries) in self.__links.items():
+            for (direction, endpoint) in entries:
+                if location == endpoint:
+                    links.append(link)
+                    break
         return links
         
 
@@ -144,7 +146,7 @@ class SampleService(dbus.service.Object):
         else:
             serial = str()
             self.__entities[location] = (kind, set(mixins), attributes, owner, group, serial)
-            self.__add_collection(location, [kind] + mixins)
+            self.__add_collections(location, [kind] + mixins)
             return (kind, mixins, attributes, [], serial)
 
     
@@ -180,7 +182,7 @@ class SampleService(dbus.service.Object):
     def Link(self, location, direction, link):
         location = str(location)
         link = str(link)
-        print "[INFO] Link(%s, %s, %s)" % (location, direction, link)
+        print "[INFO] Link(%s, %i, %s)" % (location, direction, link)
         if not link in self.__links:
             self.__links[link] = set()
         self.__links[link].add( (direction, location) )
@@ -268,7 +270,7 @@ class SampleService(dbus.service.Object):
             serial = str()
             return (ret, serial)
         else:
-            raise NotFound('%s entity does not exists' % (location))
+            return ([], '')
 
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
