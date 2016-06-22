@@ -20,6 +20,9 @@ addons:
       - python3-pycurl
       - libglib2.0-0
 
+env:
+  - DISPLAY=:0.0
+      
 install:
   - "make"
 
