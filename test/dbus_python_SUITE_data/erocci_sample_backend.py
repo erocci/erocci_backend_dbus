@@ -16,6 +16,8 @@ import uuid
 IFACE = "org.ow2.erocci.backend.core"
 SERVICE = "org.ow2.erocci.backend.SampleService"
 
+BASEDIR = os.path.dirname(os.path.abspath(__file__))
+SCHEMA_PATH = os.path.abspath(os.path.join(BASEDIR, "occi-infrastructure.xml"))
 SCHEMA_TYPE_XML = 0
 
 LINK_SOURCE = 0
@@ -28,13 +30,11 @@ def log(msg):
     
     
 def get_schema():
-    dirname = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.abspath(os.path.join(dirname, "occi-infrastructure.xml"))
     content = ''
-    with open(path, 'r') as fh:
+    with open(SCHEMA_PATH, 'r') as fh:
         for line in fh:
             content = content + line
-        log("Load schema from %s" % (path,))
+        log("Load schema from %s" % (SCHEMA_PATH,))
     return content
 
 
@@ -274,6 +274,9 @@ class SampleService(dbus.service.Object):
         else:
             return ([], '')
 
+        
+if len(sys.argv) > 1:
+    SCHEMA_PATH = sys.argv[1]
 
 service = SampleService()
 log("Connection: %s" % (service.connection.activate_name_owner(SERVICE),))
