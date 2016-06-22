@@ -184,10 +184,10 @@ action(Location, {ActionScheme, ActionTerm}, Attributes, #state{ proxy=Backend }
     ?info("[~p] action(~s, ~s~s)", [?MODULE, Location, ActionScheme, ActionTerm]),
     Args = [ Location, << ActionScheme/binary, ActionTerm/binary >>, Attributes ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Action">>, Args) of
-	{ok, {KindId, MixinIds, Attributes, Links, Serial}} ->
-	    dbus_ok(KindId, MixinIds, Attributes, Links, 
+	{ok, {KindId, MixinIds, Attributes2, Links, Serial}} ->
+	    dbus_ok(KindId, MixinIds, Attributes2, Links, 
 		    fun (Entity) ->
-			    {ok, occi_entity:location(Entity), unmarshal_serial(Serial)}
+			    {ok, occi_entity:location(Location, Entity), unmarshal_serial(Serial)}
 		    end, S);
 	{error, Err} ->
 	    dbus_errors(Err, S)
@@ -216,7 +216,7 @@ mixin(Location, {Scheme, Term}, Attributes, #state{ proxy=Backend }=S) ->
 	{ok, {KindId, MixinIds, Attributes, Links, Serial}} ->
 	    dbus_ok(KindId, MixinIds, Attributes, Links,
 		    fun (Entity) ->
-			    {ok, occi_entity:location(Entity), unmarshal_serial(Serial)}
+			    {ok, occi_entity:location(Location, Entity), unmarshal_serial(Serial)}
 		    end, S);
 	{error, Err} ->
 	    dbus_errors(Err, S)
