@@ -1,3 +1,5 @@
+sudo: false
+
 branches:
   only:
     - master
@@ -7,19 +9,15 @@ otp_release:
    - 18.1
    - 18.2.1
 
-python:
-  - "3.5"
-
-sudo: false
-
 addons:
   apt:
     packages:
       - build-essential
       - dbus
+      - python3
       - python3-dbus
       - python3-pycurl
-      - gir1.2-gtk-3.0
+      - libglib2.0-0
 
 install:
   - "make"
