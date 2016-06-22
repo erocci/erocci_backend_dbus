@@ -12,13 +12,18 @@ sudo: false
 addons:
   apt:
     packages:
+      - build-essential
+      - dbus
+      - python-dbus
+      - python-gobject
       - python-pycurl
 
 install:
   - "make"
 
 script:
-  - "make tests"
+  #- "make tests"
+  - "make test-report"
 
 notifications:
   email:
