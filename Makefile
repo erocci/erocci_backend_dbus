@@ -24,7 +24,7 @@ test-build:: $(POCCI_DATA)
 $(POCCI_DATA):
 	@echo "{'POCCI', \"$(DEPS_DIR)/pocci/pOCCI/pOCCI.py\"}." > $@
 
-test-report:
+test-report: tests
 	cat logs/ct_run.*/*.logs/run.*/suite.log
 
 .PHONY: clean-local 
