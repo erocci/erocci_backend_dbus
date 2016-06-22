@@ -184,7 +184,7 @@ class SampleService(dbus.service.Object):
     def Link(self, location, direction, link):
         location = str(location)
         link = str(link)
-        log("Link(%s, %i, %s)" % (location, direction, link))
+        log("Link(%s, %s)" % (location, link))
         if not link in self.__links:
             self.__links[link] = set()
         self.__links[link].add( (direction, location) )
