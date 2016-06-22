@@ -10,3 +10,5 @@ D-Bus interface for erocci backends
 The API is fully described in [`priv/erocci-dbus.xml`](https://github.com/erocci/erocci/blob/master/priv/erocci-dbus.xml)
 
 A sample Python backend is provided in [`test/dbus_python_SUITE_data/erocci_sample_backend.py`](https://github.com/erocci/erocci/blob/master/test/dbus_python_SUITE_data/erocci_sample_backend.py).
+
+This sample backend can take as argument a XML OCCI schema. Default schema is [OCCI infrastructure](https://github.com/erocci/erocci/blob/master/test/dbus_python_SUITE_data/occi-infrastructure.xml).
