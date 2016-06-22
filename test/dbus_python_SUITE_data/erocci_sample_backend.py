@@ -8,6 +8,7 @@ from gi.repository import Gtk
 from dbus.mainloop.glib import DBusGMainLoop
 
 import os
+import sys
 import dbus
 import dbus.service
 import signal
@@ -21,6 +22,12 @@ SCHEMA_TYPE_XML = 0
 LINK_SOURCE = 0
 LINK_TARGET = 1
 
+
+def log(msg):
+    sys.stderr.write("[INFO] " + msg + "\n")
+    return
+    
+    
 def get_schema():
     dirname = os.path.dirname(os.path.abspath(__file__))
     path = os.path.abspath(os.path.join(dirname, "occi-infrastructure.xml"))
@@ -28,16 +35,9 @@ def get_schema():
     with open(path, 'r') as fh:
         for line in fh:
             content = content + line
-        print "[INFO] Load schema from %s" % (path,)
+        log("Load schema from %s" % (path,))
     return content
 
-
-def to_string(array):
-    s = ''
-    for c in array:
-        s+= chr(c)
-    return s
-    
 
 class NotFound(dbus.exceptions.DBusException):
     _dbus_error_name = "org.ow2.erocci.backend.NotFound"
@@ -104,39 +104,40 @@ class SampleService(dbus.service.Object):
                 return (kind, list(mixins), attributes, self.__get_links(location), owner, group, serial)
         else:
             raise NotFound("%s entity does not exists" % (location))
-    
-        
+
+
     ##
     ## Interface: org.ow2.erocci.backend.core
     ##
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='a{sv}', out_signature='', byte_arrays=True)
     def Init(self, opts):
-        print "[INFO] Init(%s)" % (opts)
+        log("Init(%s)" % (opts))
         return 
 
     
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='', out_signature='', byte_arrays=True)
     def Terminate(self):
-        print "[INFO] Terminate()"
-        return
+        log("Terminate()")
+        exit(1)
 
     
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='', out_signature='a(ys)', byte_arrays=True)
     def Models(self):
-        print "[INFO] Models()"
+        log("Models()")
         return [ (SCHEMA_TYPE_XML, self.__schema)]
+    
 
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='sasa{sv}assss', byte_arrays=True)
     def Get(self, location):
         location = str(location)
-        print "[INFO] Get(%s)" % (location)
+        log("Get(%s)" % (location))
         return self.__get(location)
 
     
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ssasa{sv}ss', out_signature='sasa{sv}ass', byte_arrays=True)
     def Create1(self, location, kind, mixins, attributes, owner, group):
         location = str(location)
-        print "[INFO] Create1(%s)" % (location)
+        log("Create1(%s)" % (location))
         if location in self.__entities[location]:
             (e_kind, e_mixins, e_attributes, e_owner, e_group, e_serial) = self.__entities[location]
             if e_owner == owner:
@@ -154,7 +155,7 @@ class SampleService(dbus.service.Object):
     
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sasa{sv}ss', out_signature='ssasa{sv}ass', byte_arrays=True)
     def Create2(self, kind, mixins, attributes, owner, group):
-        print "[INFO] Create2(%s)" % (kind)
+        log("Create2(%s)" % (kind))
         location = ''
         if 'occi.core.id' in attributes:
             location = attributes['occi.core.id']
@@ -169,7 +170,7 @@ class SampleService(dbus.service.Object):
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa{sv}', out_signature='sasa{sv}ass', byte_arrays=True)
     def Update(self, location, attributes):
         location = str(location)
-        print "[INFO] Update(%s)" % (location)
+        log("Update(%s)" % (location))
         if location in self.__entities:
             (kind, mixins, actual, owner, group, serial) = self.__entities[location]
             for (k, v) in attributes:
@@ -184,7 +185,7 @@ class SampleService(dbus.service.Object):
     def Link(self, location, direction, link):
         location = str(location)
         link = str(link)
-        print "[INFO] Link(%s, %i, %s)" % (location, direction, link)
+        log("Link(%s, %i, %s)" % (location, direction, link))
         if not link in self.__links:
             self.__links[link] = set()
         self.__links[link].add( (direction, location) )
@@ -194,7 +195,7 @@ class SampleService(dbus.service.Object):
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='ssa{sv}', out_signature='sasa{sv}ass', byte_arrays=True)
     def Action(self, location, action, attributes):
         location = str(location)
-        print "[INFO] Action(%s, %s)" % (location, action)
+        log("Action(%s, %s)" % (location, action))
         if location in self.__entities:
             (kind, mixins, attributes, owner, group, serial) = self.__entities[location]
             return (kind, list(mixins), attributes, self.__get_links(location), serial)
@@ -205,7 +206,7 @@ class SampleService(dbus.service.Object):
     @dbus.service.method("org.ow2.erocci.backend.core", in_signature='s', out_signature='', byte_arrays=True)
     def Delete(self, location):
         location = str(location)
-        print "[INFO] Delete(%s)" % (location)
+        log("Delete(%s)" % (location))
         if location in self.__entities:
             (kind, mixins, attributes, owner, group, serial) = self.__entities[location]
             if 'occi.core.source' in attributes:
@@ -224,7 +225,7 @@ class SampleService(dbus.service.Object):
     def Mixin(self, location, mixin, attributes):
         location = str(location)
         mixin = str(mixin)
-        print "[INFO] Mixin(%s, %s)" % (location, mixin)
+        log("Mixin(%s, %s)" % (location, mixin))
         if location in self.__entities:
             (kind, mixins, actual, owner, group, serial) = self.__entities[location]
             self.__add_collections(location, [mixin])
@@ -241,7 +242,7 @@ class SampleService(dbus.service.Object):
     def Unmixin(self, location, mixin):
         location = str(location)
         mixin = str(mixin)
-        print "[INFO] Unmixin(%s, %s)" % (location, mixin)
+        log("Unmixin(%s, %s)" % (location, mixin))
         if location in self.__entities:
             (kind, mixins, actual, owner, group, serial) = self.__entities[location]
             self.__rm_collections(location, [mixin])
@@ -258,7 +259,7 @@ class SampleService(dbus.service.Object):
         start = int(start)
         number = int(number)
         # Do not handle unbounded collection, nor filters (just for demo)
-        print "[INFO] Collection(%s)" % (category)
+        log("Collection(%s)" % (category))
         if category in self.__collections:
             locations = []
             ret = []
@@ -278,6 +279,6 @@ class SampleService(dbus.service.Object):
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 DBusGMainLoop(set_as_default=True)
 service = SampleService()
-print("%s" % (service.connection.activate_name_owner(SERVICE),))
+log("Connection: %s" % (service.connection.activate_name_owner(SERVICE),))
 Gtk.main()
 
