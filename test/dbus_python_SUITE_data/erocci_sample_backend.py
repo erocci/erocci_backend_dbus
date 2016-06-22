@@ -137,12 +137,12 @@ class SampleService(dbus.service.Object):
     def Create1(self, location, kind, mixins, attributes, owner, group):
         location = str(location)
         log("Create1(%s)" % (location))
-        if location in self.__entities[location]:
+        if location in self.__entities:
             (e_kind, e_mixins, e_attributes, e_owner, e_group, e_serial) = self.__entities[location]
             if e_owner == owner:
                 self.__entities[location] = (kind, set(mixins), attributes, owner, group, e_serial)
                 self.__add_collections(location, [kind] + mixins)
-                return (kind, mixins, attributes, self.__get_links(location), serial)
+                return (kind, mixins, attributes, self.__get_links(location), e_serial)
             else:
                 raise Conflict("%s entity does not exists" % (location))
         else:
