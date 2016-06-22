@@ -31,7 +31,6 @@ init_per_suite(Config) ->
                         [{allow, '_', '_', '_'}]),
 
     Config2 = start_dbus(Config),
-    timer:sleep(1000),
     Config3 = start_service(Config2),
     timer:sleep(1000),
     
@@ -176,15 +175,16 @@ pocci(Name, Config) ->
 
 
 pocci_config(Config) ->
-	PocciConfig = filename:join([?config(data_dir, Config), "pocci.conf"]),
-	{ok, [{'POCCI', Path}]} = file:consult(PocciConfig),
-	[ {pocci, Path} | Config ].
+    PocciConfig = filename:join([?config(data_dir, Config), "pocci.conf"]),
+    {ok, [{'POCCI', Path}]} = file:consult(PocciConfig),
+    [ {pocci, Path} | Config ].
 
 
 start_dbus(Config) ->
     DbusConfig = filename:join([?config(data_dir, Config), "dbus.config"]),
     Port = start_cmd("dbus-daemon --config-file=" ++ DbusConfig),
     DBusEnv = "unix:path=/tmp/dbus-test",
+    os:putenv("DBUS_SESSION_BUS_ADDRESS", DBusEnv),
     [ {dbus, Port}, {dbus_env, DBusEnv} | Config ].
 
 
