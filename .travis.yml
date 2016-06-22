@@ -24,8 +24,7 @@ install:
   - "make"
 
 script:
-  #- "make tests"
-  - "make test-report"
+  - "make tests"
 
 notifications:
   email:
