@@ -81,6 +81,7 @@
       <arg name="kind" type="s" direction="out" />
       <arg name="mixins" type="as" direction="out" />
       <arg name="attributes" type="a{sv}" direction="out" />
+      <arg name="links" type="as" direction="out" />
       <arg name="owner" type="s" direction="out" />
       <arg name="group" type="s" direction="out" />
       <arg name="serial" type="s" direction="out" />
@@ -117,6 +118,7 @@
       <arg name="kind" type="s" direction="out" />
       <arg name="mixins" type="as" direction="out" />
       <arg name="attributes" type="a{sv}" direction="out" />
+      <arg name="links" type="as" direction="out" />
       <arg name="serial" type="s" direction="out" />
     </method>
 
@@ -151,6 +153,7 @@
       <arg name="kind" type="s" direction="out" />
       <arg name="mixins" type="as" direction="out" />
       <arg name="attributes" type="a{sv}" direction="out" />
+      <arg name="links" type="as" direction="out" />
       <arg name="serial" type="s" direction="out" />
     </method>
 
@@ -177,6 +180,7 @@
       <arg name="kind" type="s" direction="out" />
       <arg name="mixins" type="as" direction="out" />
       <arg name="attributes" type="a{sv}" direction="out" />
+      <arg name="links" type="as" direction="out" />
       <arg name="serial" type="s" direction="out" />
     </method>
 
@@ -221,6 +225,7 @@
       <arg name="kind" type="s" direction="out" />
       <arg name="mixins" type="as" direction="out" />
       <arg name="attributes" type="a{sv}" direction="out" />
+      <arg name="links" type="as" direction="out" />
       <arg name="serial" type="s" direction="out" />
     </method>
 
@@ -261,6 +266,7 @@
       <arg name="kind" type="s" direction="out" />
       <arg name="mixins" type="as" direction="out" />
       <arg name="attributes" type="a{sv}" direction="out" />
+      <arg name="links" type="as" direction="out" />
       <arg name="serial" type="s" direction="out" />
     </method>
 
@@ -287,6 +293,7 @@
       <arg name="kind" type="s" direction="out" />
       <arg name="mixins" type="as" direction="out" />
       <arg name="attributes" type="a{sv}" direction="out" />
+      <arg name="links" type="as" direction="out" />
       <arg name="serial" type="s" direction="out" />
     </method>
 
@@ -305,25 +312,29 @@
 	  * id (string): category id or path
 	  * filter (a(ysv)): filter
 	  * start (unsigned integer): index of first record
-	  * number (unsigned integer): maximal number of entities to retrieve, -1 for infinite
+	  * number (integer): maximal number of entities to retrieve, -1 for infinite
         </xs:documentation>
         <xs:documentation>
-          Out: list of:
-          * kind (string): kind id
-	  * mixins (string array): mixin ids
-	  * attributes (string/variant array): entity attributes
-	  * owner (string): entity owner
-	  * group (string): entity group owner
-	  * serial (string): entity serial
+          Out:
+	  * list of entities ('a(sasa{sv}sss)'):
+	    * location (string): entity location
+            * kind (string): kind id
+	    * mixins (string array): mixin ids
+	    * attributes (string/variant array): entity attributes
+	    * links (string array): resource links locations
+	    * owner (string): entity owner
+	    * group (string): entity group owner
+	  * serial (string): collection serial
         </xs:documentation>
       </xs:annotation>
 
       <arg name="id" type="s" direction="in" />
       <arg name="filter" type="a(ysv)" direction="in" />
       <arg name="start" type="u" direction="in" />
-      <arg name="number" type="u" direction="in" />
+      <arg name="number" type="i" direction="in" />
 
       <arg name="entities" type="a(sasa{sv}sss)" direction="out" />
+      <arg name="serial" type="s" direction="out" />
     </method>
   </interface>
 </node>
