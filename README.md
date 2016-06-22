@@ -3,20 +3,8 @@ erocci_backend_dbus
 
 D-Bus interface for erocci backends
 
-# Backend skeleton
+# Backend API
 
-D-Bus interface for backends is completly described with an XML
-backends in `priv/erocci-dbus.xml`. A backend skeleton can be
-generated with the script `priv/generate.es`.
+The API is fully described in `priv/erocci-dbus.xml'
 
-Usage:
-```
-priv/generate.es -o LANG Name
-```
-
-* LANG: output language. Available: python
-* Name: Name of the backend.
-
-# TODO
-
-* Define return values for long requests: something like HTTP 202 Code
+A sample Python backend is provided in `test/dbus_python_SUITE_data/erocci_sample_backend.py'.
