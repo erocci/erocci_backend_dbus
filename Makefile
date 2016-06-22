@@ -7,7 +7,7 @@ TEST_DEPS = erocci_listener_http pocci
 
 dep_erocci_core = git https://github.com/erocci/erocci_core.git master
 dep_erocci_listener_http = git https://github.com/erocci/erocci_listener_http.git master
-dep_dbus = git git://github.com/lizenn/erlang-dbus.git 0.6.0
+dep_dbus = git git://github.com/lizenn/erlang-dbus.git 0.6.1
 dep_pocci = git https://github.com/jeanparpaillon/pOCCI.git v1.0.0+erocci1.2.0
 
 include erlang.mk
