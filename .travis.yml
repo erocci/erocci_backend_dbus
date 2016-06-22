@@ -1,0 +1,26 @@
+branches:
+  only:
+    - master
+  
+language: erlang
+otp_release:
+   - 18.1
+   - 18.2.1
+
+sudo: false
+
+addons:
+  apt:
+    packages:
+      - python-pycurl
+
+install:
+  - "make"
+
+script:
+  - "make tests"
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always
