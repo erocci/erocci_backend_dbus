@@ -7,6 +7,9 @@ otp_release:
    - 18.1
    - 18.2.1
 
+python:
+  - '3.2'
+
 sudo: false
 
 addons:
@@ -17,7 +20,7 @@ addons:
       - python-dbus
       - python-gobject
       - python-pycurl
-      - python-gtk2
+      - gir1.2-gtk-3.0
 
 install:
   - "make"
