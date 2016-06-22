@@ -6,3 +6,4 @@
 /.erlang.mk
 /deps
 /priv/erocci-dbus-nodoc.xml
+/logs
