@@ -2,10 +2,9 @@
 #
 # Sample python backend - in memory storage
 #
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
-from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import GObject
+import dbus
+import dbus.glib
 
 import os
 import sys
@@ -158,7 +157,7 @@ class SampleService(dbus.service.Object):
         log("Create2(%s)" % (kind))
         location = ''
         if 'occi.core.id' in attributes:
-            location = attributes['occi.core.id']
+            location = str(attributes['occi.core.id'])
         else:
             location = '%s' % uuid.uuid4()
         serial = str()
@@ -276,9 +275,9 @@ class SampleService(dbus.service.Object):
             return ([], '')
 
 
-signal.signal(signal.SIGINT, signal.SIG_DFL)
-DBusGMainLoop(set_as_default=True)
 service = SampleService()
 log("Connection: %s" % (service.connection.activate_name_owner(SERVICE),))
-Gtk.main()
+
+mainloop = GObject.MainLoop()
+mainloop.run()
 

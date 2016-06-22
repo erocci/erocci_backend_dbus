@@ -7,3 +7,4 @@
 /deps
 /priv/erocci-dbus-nodoc.xml
 /logs
+/test/dbus_python_SUITE_data/pocci.conf
