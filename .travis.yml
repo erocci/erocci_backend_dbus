@@ -17,6 +17,7 @@ addons:
       - python-dbus
       - python-gobject
       - python-pycurl
+      - python-gtk2
 
 install:
   - "make"
