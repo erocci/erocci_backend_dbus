@@ -383,9 +383,10 @@ dbus_errors({?dbus_exception_conflict, _Msg}, S) ->
     {{error, conflict}, S};
 
 dbus_errors({Name, Msg}, S) ->
-    ?debug("Unknown exception from backend: ~p", [Name]),
-    ?debug("Exception: ~p", [Msg]),
-    {{error, Name}, S};
+    ?debug("[~s]~n"
+	   "\tUnknown exception from backend: ~p~n"
+	   "\tException: ~p", [?MODULE, Name, Msg]),
+    {{error, {internal, Name}}, S};
 
 dbus_errors(Else, S) ->
     {{error, Else}, S}.
