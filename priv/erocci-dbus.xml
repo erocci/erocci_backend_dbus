@@ -170,6 +170,7 @@
           * kind (string): kind id
 	  * mixins (string array): mixin ids
 	  * attributes (string/variant array): entity attributes
+	  * links (string array): links
 	  * serial (string): entity serial
         </xs:documentation>
       </xs:annotation>
