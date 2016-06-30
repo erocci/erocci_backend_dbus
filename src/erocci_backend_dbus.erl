@@ -244,7 +244,7 @@ unmixin(Location, {Scheme, Term}, #state{ proxy=Backend }=S) ->
 		 Filter :: erocci_filter:t(),
 		 Start :: integer(), Number :: integer() | undefined,
 		 State :: term()) ->
-			{{ok, [{occi_entity:t(), erocci_creds:user(), erocci_creds:group()}], erocci_node:serial()}
+			{{ok, [occi_entity:id()], erocci_node:serial()}
 			 | {error, erocci_backend:error()}, NewState :: term()}.
 collection({Scheme, Term}, Filter, Start, Number, S) ->
     collection(<< Scheme/binary, Term/binary >>, Filter, Start, Number, S);
@@ -254,13 +254,8 @@ collection(Id, Filter, Start, Number, #state{ proxy=Backend }=S) ->
     Args = [ Id, marshal_filter(Filter, []), Start, 
 	     case Number of undefined -> -1; _ -> Number end ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Collection">>, Args) of
-	{ok, {Data, Serial}} ->
-	    case unmarshal_entities(Data, []) of
-		{ok, Entities} ->
-		    {{ok, Entities, Serial}, S};
-		{error, _}=Err ->
-		    Err
-	    end;
+	{ok, {Locations, Serial}} ->
+	    {{ok, Locations, Serial}, S};
 	{error, Err} ->
 	    dbus_errors(Err, S)
     end.

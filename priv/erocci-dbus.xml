@@ -317,14 +317,7 @@
         </xs:documentation>
         <xs:documentation>
           Out:
-	  * list of entities ('a(sasa{sv}sss)'):
-	    * location (string): entity location
-            * kind (string): kind id
-	    * mixins (string array): mixin ids
-	    * attributes (string/variant array): entity attributes
-	    * links (string array): resource links locations
-	    * owner (string): entity owner
-	    * group (string): entity group owner
+	  * list of locations (string array)
 	  * serial (string): collection serial
         </xs:documentation>
       </xs:annotation>
@@ -334,7 +327,7 @@
       <arg name="start" type="u" direction="in" />
       <arg name="number" type="i" direction="in" />
 
-      <arg name="entities" type="a(ssasa{sv}asss)" direction="out" />
+      <arg name="entities" type="as" direction="out" />
       <arg name="serial" type="s" direction="out" />
     </method>
   </interface>

@@ -157,7 +157,7 @@ class SampleService(dbus.service.Object):
         log("Create2(%s)" % (kind))
         location = ''
         if 'occi.core.id' in attributes:
-            location = str(attributes['occi.core.id'])
+            location = attributes['occi.core.id'].decode('UTF-8')
         else:
             location = '%s' % uuid.uuid4()
         serial = str()
@@ -252,7 +252,7 @@ class SampleService(dbus.service.Object):
             raise NotFound('%s entity does not exists' % (location))
 
 
-    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa(ysv)ui', out_signature='a(ssasa{sv}asss)s', byte_arrays=True)
+    @dbus.service.method("org.ow2.erocci.backend.core", in_signature='sa(ysv)ui', out_signature='ass', byte_arrays=True)
     def Collection(self, category, filter, start, number):
         category = str(category)
         start = int(start)
@@ -263,14 +263,11 @@ class SampleService(dbus.service.Object):
             locations = []
             ret = []
             if number == -1:
-                locations = list(self.__collections[category])[start:]
+                locations = list(self.__collections[category])[(start-1):]
             else:
                 locations = list(self.__collections[category])[(start-1):number]
-            for location in locations:
-                (kind, mixins, attributes, owner, group, serial) = self.__entities[location]
-                ret.append( (location, kind, list(mixins), attributes, self.__get_links(location), owner, group) )
             serial = str()
-            return (ret, serial)
+            return (locations, serial)
         else:
             return ([], '')
 
