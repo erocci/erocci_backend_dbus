@@ -152,8 +152,8 @@ update(Location, Attributes, #state{ proxy=Backend }=S) ->
     ?info("[~p] update(~s)", [?MODULE, Location]),
     Args = [ Location, Attributes ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Update">>, Args) of
-	{ok, {KindId, MixinIds, Attributes, Links, Serial}} ->
-	    dbus_ok(KindId, MixinIds, Attributes, Links,
+	{ok, {KindId, MixinIds, Attributes2, Links, Serial}} ->
+	    dbus_ok(KindId, MixinIds, Attributes2, Links,
 		    fun (Entity) ->
 			    {ok, occi_entity:location(Location, Entity), unmarshal_serial(Serial)}
 		    end, S);
