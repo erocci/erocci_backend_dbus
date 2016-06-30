@@ -258,7 +258,7 @@ class SampleService(dbus.service.Object):
         start = int(start)
         number = int(number)
         # Do not handle unbounded collection, nor filters (just for demo)
-        log("Collection(%s)" % (category))
+        log("Collection(%s, %s, %s)" % (category, start, number))
         if category in self.__collections:
             locations = []
             ret = []
