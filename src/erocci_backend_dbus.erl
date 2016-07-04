@@ -316,19 +316,6 @@ parse_models([ {Type, _Bin} | _ ], _, S) ->
     {{error, {parse_error, {unsupported_format, Type}}}, S}.
 
 
-unmarshal_entities([], Acc) ->
-    {ok, lists:reverse(Acc)};
-
-unmarshal_entities([ {Location, KindId, MixinIds, Attributes, Links, Owner, Group} | Tail ], Acc) ->
-    try unmarshal_entity(KindId, MixinIds, Attributes, Links) of
-	Entity ->
-	    Entry = { occi_entity:location(Location, Entity), unmarshal_user(Owner), unmarshal_user(Group) },
-	    unmarshal_entities(Tail, [ Entry | Acc ])
-    catch throw:Err ->
-	    {error, Err}
-    end.
-    
-
 unmarshal_entity(KindId, MixinIds, Attributes, Links) ->
     E0 = occi_entity:new(KindId),
     E1 = lists:foldl(fun (MixinId, Acc) ->
