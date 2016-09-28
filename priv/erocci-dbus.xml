@@ -201,6 +201,22 @@
       <arg name="link" type="s" direction="in" />
     </method>
 
+    <method name="Unlink" >
+      <xs:annotation>
+        <xs:documentation>Remove association between resource and link</xs:documentation>
+        <xs:documentation>
+          In:
+	  * location (string): entity path relative path
+	  * type (byte): 0: source, 1: target
+	  * link (string): link location
+        </xs:documentation>
+      </xs:annotation>
+
+      <arg name="location" type="s" direction="in" />
+      <arg name="type" type="y" direction="in" />
+      <arg name="link" type="s" direction="in" />
+    </method>
+
     <method name="Action" >
       <xs:annotation>
         <xs:documentation>Launch an action on the entity</xs:documentation>

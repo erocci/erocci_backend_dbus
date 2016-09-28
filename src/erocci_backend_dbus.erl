@@ -33,6 +33,7 @@
 	 create/5,
 	 update/3,
 	 link/4,
+	 unlink/4,
 	 action/4,
 	 delete/2,
 	 mixin/4,
@@ -170,6 +171,20 @@ link(Location, Type, LinkId, #state{ proxy=Backend }=S) ->
     ?info("[~p] link(~s)", [?MODULE, Location]),
     Args = [ Location, ?link_types(Type), LinkId ],
     case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Link">>, Args) of
+	ok ->
+	    {ok, S};
+	{error, Err} ->
+	    dbus_errors(Err, S)
+    end.
+
+
+-spec unlink(Location :: occi_uri:url(), 
+	     Type :: source | target, LinkId :: occi_link:id(), State :: term()) ->
+		    {ok | {error, erocci_backend:error()}, NewState :: term()}.
+unlink(Location, Type, LinkId, #state{ proxy=Backend }=S) ->
+    ?info("[~p] unlink(~s)", [?MODULE, Location]),
+    Args = [ Location, ?link_types(Type), LinkId ],
+    case dbus_proxy:call(Backend, ?IFACE_BACKEND, <<"Unlink">>, Args) of
 	ok ->
 	    {ok, S};
 	{error, Err} ->
